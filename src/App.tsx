@@ -361,12 +361,47 @@ export function App() {
       recipe: { ...recipe },
     };
     setSavedRecipes((prev) => [entry, ...prev]);
-    showToast(`Saved "${recipe.title}" to your browser's Local Galley Box.`);
+    setInputTab('saved');
+    showToast(`Saved "${recipe.title}" into your Galley Box (in-browser saved recipes)!`);
   };
 
   const handleDeleteSaved = (id: string) => {
     setSavedRecipes((prev) => prev.filter((item) => item.id !== id));
-    showToast('Removed recipe from Local Galley Box.');
+    showToast('Removed recipe from your Galley Box.');
+  };
+
+  const handleExportGalleyBoxJson = () => {
+    const blob = new Blob([JSON.stringify(savedRecipes, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ten-forward-galley-box-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded Galley Box recipe backup (.json).');
+  };
+
+  const handleImportGalleyBoxJson = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        if (!Array.isArray(parsed)) throw new Error('Invalid format');
+        const valid = parsed.filter(
+          (item): item is SavedRecipeEntry =>
+            Boolean(item && typeof item === 'object' && item.recipe && item.recipe.title)
+        );
+        setSavedRecipes((prev) => [...valid, ...prev]);
+        showToast(`Imported ${valid.length} recipe(s) into your Galley Box!`);
+      } catch {
+        showToast('Could not parse backup file — make sure it is a valid Galley Box .json export.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -386,16 +421,19 @@ export function App() {
                 Ten Forward
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.2"
+                  title="Ten Forward Application Version 1.3"
                 >
-                  v1.2
+                  v1.3
                 </span>
                 <span className="text-xs font-normal text-slate-400 hidden sm:inline">
                   — Recipe Extractor &amp; Printable Galley Card
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Creator Attribution + Zero Tracking
-                  <InfoTooltip text="Stateless edge extraction strips ads and popups while permanently preserving the original chef/author name, site name, clickable link, and printable QR code." />
+                  <InfoTooltip
+                    position="bottom"
+                    text="Stateless edge extraction strips ads and popups while permanently preserving the original chef/author name, site name, clickable link, and printable QR code."
+                  />
                 </span>
               </h1>
               <p className="text-xs text-slate-400">
@@ -405,14 +443,40 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-4 text-xs">
-            <button
-              type="button"
-              onClick={() => setInputTab('saved')}
-              title="Open recipes saved in your browser's local storage"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 font-medium transition-colors"
-            >
-              Galley Box ({savedRecipes.length})
-            </button>
+            <div className="inline-flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setInputTab('saved')}
+                title="Galley Box is your personal Recipe Box saved privately inside this browser. Click to view your saved recipes."
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer ${
+                  inputTab === 'saved'
+                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                    : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-300'
+                }`}
+              >
+                <svg
+                  className="w-4 h-4 text-cyan-400 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                  />
+                </svg>
+                <span>Galley Box</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-950/90 text-cyan-300 border border-slate-700">
+                  {savedRecipes.length} saved
+                </span>
+              </button>
+              <InfoTooltip
+                position="bottom"
+                text="Galley Box is your personal Recipe Box stored privately inside your browser (localStorage). Save your favorite extracted recipes here to build your own ad-free cookbook—100% offline with no account required."
+              />
+            </div>
             <a
               href="https://apps.the-lal.net"
               title="Return to the full the-lal.net browser utility directory"
@@ -519,55 +583,70 @@ export function App() {
         {/* 1. Extraction & Source Input Deck (Hidden in Print) */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl no-print">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3.5 mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setInputTab('url')}
-                title="Extract a recipe, dish photos, and creator attribution from any public URL"
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  inputTab === 'url'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'bg-slate-800 text-slate-300 hover:text-white'
-                }`}
-              >
-                1. Scrape Recipe URL
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputTab('paste')}
-                title="Paste copied recipe text or raw HTML directly (works 100% offline with zero network calls)"
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  inputTab === 'paste'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'bg-slate-800 text-slate-300 hover:text-white'
-                }`}
-              >
-                2. Paste Text / HTML (Offline Mode)
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputTab('presets')}
-                title="Load Star Trek: The Next Generation sample recipes from Ten Forward"
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  inputTab === 'presets'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'bg-slate-800 text-slate-300 hover:text-white'
-                }`}
-              >
-                3. Starfleet Sample Recipes
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputTab('saved')}
-                title="View or load recipes saved in your browser's Local Galley Box"
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  inputTab === 'saved'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'bg-slate-800 text-slate-300 hover:text-white'
-                }`}
-              >
-                4. Saved Galley Box ({savedRecipes.length})
-              </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setInputTab('url')}
+                  title="Extract a recipe, dish photos, and creator attribution from any public URL"
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    inputTab === 'url'
+                      ? 'bg-cyan-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  🔗 1. Scrape Recipe URL
+                </button>
+                <InfoTooltip text="Paste any link from a recipe blog or cooking site to strip out ads and life stories while keeping dish photos and creator credit." />
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setInputTab('paste')}
+                  title="Paste copied recipe text or raw HTML directly (works 100% offline with zero network calls)"
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    inputTab === 'paste'
+                      ? 'bg-cyan-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  📋 2. Paste Text / HTML (Offline)
+                </button>
+                <InfoTooltip text="Copy and paste text from an email, document, or paywalled webpage to format it into a clean Galley Card 100% offline." />
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setInputTab('presets')}
+                  title="Load Star Trek: The Next Generation sample recipes from Ten Forward"
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    inputTab === 'presets'
+                      ? 'bg-cyan-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  🖖 3. Starfleet Sample Recipes
+                </button>
+                <InfoTooltip text="Try Ten Forward immediately with sample recipes from Guinan, Captain Picard, and Commander Riker." />
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setInputTab('saved')}
+                  title="Galley Box: Open your personal collection of recipes saved inside this browser"
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    inputTab === 'saved'
+                      ? 'bg-cyan-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  🗃️ 4. Galley Box • Saved Recipes ({savedRecipes.length})
+                </button>
+                <InfoTooltip text="Think of the Galley Box as the recipe tin on your kitchen counter. Any recipe you save here stays in your browser's local storage so you can reopen or print it anytime." />
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
@@ -730,29 +809,112 @@ export function App() {
 
           {/* Tab 4: Saved Local Galley Box */}
           {inputTab === 'saved' && (
-            <div>
+            <div className="space-y-4">
+              {/* Visual Aid Banner Explaining the Galley Box */}
+              <div className="p-4 rounded-xl bg-slate-950/90 border border-cyan-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.8"
+                        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-white">
+                        Your Personal Galley Box (In-Browser Recipe Tin)
+                      </h3>
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        100% On-Device Storage
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                      In naval and Starfleet terminology, the <strong className="text-slate-200">galley</strong> is the kitchen.
+                      Your <strong className="text-cyan-300">Galley Box</strong> works like a classic recipe card box on your counter:
+                      any recipe you save is stored privately inside this browser so you can reopen, scale, or print it anytime—and you can export or import a <code className="text-cyan-300">.json</code> backup file to move your collection between devices.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleSaveToGalleyBox}
+                    title={`Save the currently open recipe ("${recipe.title}") into your Galley Box`}
+                    className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    + Save Current Recipe
+                  </button>
+                  {savedRecipes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleExportGalleyBoxJson}
+                      title="Download all saved Galley Box recipes as a portable .json backup file"
+                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                    >
+                      Export Backup (.JSON)
+                    </button>
+                  )}
+                  <label
+                    title="Restore or merge recipes from a previously exported Galley Box .json backup file"
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                  >
+                    Import .JSON
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={handleImportGalleyBoxJson}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
               {savedRecipes.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3">
-                  Your browser&apos;s Local Galley Box is empty. Click{' '}
-                  <strong className="text-cyan-300">&ldquo;Save to Galley Box&rdquo;</strong> on any recipe
-                  to keep a permanent offline copy right in your browser.
-                </p>
+                <div className="p-6 rounded-xl bg-slate-950/50 border border-dashed border-slate-800 text-center space-y-2">
+                  <p className="text-sm font-semibold text-slate-300">
+                    Your Galley Box doesn&apos;t have any saved recipe cards yet.
+                  </p>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Click <strong className="text-cyan-300">&ldquo;+ Save Current Recipe&rdquo;</strong> above (or{' '}
+                    <strong className="text-cyan-300">&ldquo;🗃️ Save to Galley Box&rdquo;</strong> in the toolbar below)
+                    to bookmark <em className="text-slate-200">{recipe.title}</em> into your personal collection.
+                  </p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {savedRecipes.map((entry) => (
                     <div
                       key={entry.id}
-                      className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-2"
+                      className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex flex-col justify-between gap-3 transition-colors"
                     >
-                      <div>
-                        <div className="text-[10px] font-mono text-cyan-400 truncate">
-                          By {entry.recipe.attribution.authorName} &bull; {entry.recipe.attribution.siteName}
-                        </div>
-                        <div className="font-bold text-sm text-white mt-0.5">
-                          {entry.recipe.title}
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-1">
-                          Saved {entry.savedAt} &bull; {entry.recipe.ingredients.length} ingredients
+                      <div className="flex items-start gap-3">
+                        {entry.recipe.heroImage && (
+                          <img
+                            src={entry.recipe.heroImage}
+                            alt={entry.recipe.title}
+                            className="w-16 h-16 rounded-lg object-cover border border-slate-800 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-mono text-cyan-400 truncate">
+                            By {entry.recipe.attribution.authorName} &bull; {entry.recipe.attribution.siteName}
+                          </div>
+                          <div className="font-bold text-sm text-white mt-0.5 line-clamp-2">
+                            {entry.recipe.title}
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-1">
+                            Saved {entry.savedAt} &bull; {entry.recipe.ingredients.length} ingredients
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
@@ -760,18 +922,18 @@ export function App() {
                           type="button"
                           onClick={() => {
                             loadRecipe(entry.recipe);
-                            showToast(`Loaded "${entry.recipe.title}" from Galley Box.`);
+                            showToast(`Opened "${entry.recipe.title}" from your Galley Box.`);
                           }}
-                          title="Open this saved recipe in the workspace"
-                          className="flex-1 px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-semibold cursor-pointer"
+                          title="Load this saved recipe card into the main view below"
+                          className="flex-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-semibold cursor-pointer"
                         >
-                          Open Card
+                          Open Recipe Card
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteSaved(entry.id)}
-                          title="Delete this saved recipe from browser storage"
-                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 text-xs cursor-pointer"
+                          title="Remove this recipe from your browser's Galley Box"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 text-xs cursor-pointer"
                         >
                           Delete
                         </button>
@@ -948,46 +1110,64 @@ export function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSaveToGalleyBox}
-                title="Save this recipe inside your browser's Local Galley Box"
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
-              >
-                Save to Galley Box
-              </button>
-              <button
-                type="button"
-                onClick={handleCopyMarkdown}
-                title="Copy formatted Markdown (with YAML attribution frontmatter) to clipboard"
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
-              >
-                Copy .MD
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadMarkdown}
-                title="Download as a Markdown (.md) file for Obsidian, Notion, or local folders"
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
-              >
-                Download .MD
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadStandaloneHtml}
-                title="Download a self-contained, printable .html recipe card with embedded QR code and attribution"
-                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer"
-              >
-                Save Offline .HTML
-              </button>
-              <button
-                type="button"
-                onClick={handlePrintCard}
-                title="Open your browser's print / Save-as-PDF dialog using the ink-friendly light stylesheet"
-                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/10 cursor-pointer"
-              >
-                Print / Save PDF
-              </button>
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleSaveToGalleyBox}
+                  title="Bookmark this recipe inside your browser's personal Galley Box (Saved Recipes) for instant offline access later"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                >
+                  🗃️ Save to Galley Box
+                </button>
+                <InfoTooltip text="Saves a copy of this recipe inside your browser's personal Galley Box (Tab 4) so you can reopen it anytime without re-scraping the website." />
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleCopyMarkdown}
+                  title="Copy formatted Markdown (with YAML attribution frontmatter) to clipboard"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                >
+                  📋 Copy .MD
+                </button>
+                <InfoTooltip text="Copies the recipe in Markdown format (including creator attribution and scaled ingredients) so you can paste it into Notion, Obsidian, or Apple Notes." />
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleDownloadMarkdown}
+                  title="Download as a Markdown (.md) file for Obsidian, Notion, or local folders"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                >
+                  ⬇️ Download .MD
+                </button>
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleDownloadStandaloneHtml}
+                  title="Download a self-contained, printable .html recipe card with embedded QR code and attribution"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer"
+                >
+                  💾 Save Offline .HTML
+                </button>
+                <InfoTooltip text="Downloads a standalone .html file containing the styled recipe card, attribution link, and QR code that opens in any browser even without internet." />
+              </div>
+
+              <div className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handlePrintCard}
+                  title="Open your browser's print / Save-as-PDF dialog using the ink-friendly light stylesheet"
+                  className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/10 cursor-pointer"
+                >
+                  🖨️ Print / Save PDF
+                </button>
+                <InfoTooltip text="Formats the recipe onto a clean, ink-friendly white sheet with a scannable QR code pointing back to the original creator's webpage." />
+              </div>
             </div>
           </div>
 
@@ -1465,7 +1645,7 @@ export function App() {
             </div>
             <div className="flex items-center gap-3">
               <span>
-                Formatted with Ten Forward v1.2 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                Formatted with Ten Forward v1.3 (ten-forward.the-lal.net) &bull; Extracted{' '}
                 {recipe.attribution.extractedAt}
               </span>
               <a
