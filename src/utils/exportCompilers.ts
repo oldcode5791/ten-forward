@@ -21,10 +21,13 @@ export function compilePlainRecipeText(
   unitSystem: UnitSystem
 ): string {
   const scaleFactor = targetServings / Math.max(1, recipe.baseServings);
-  const scaledIngredients = recipe.ingredients.map((line) =>
+  const cleanIngredients = recipe.ingredients.filter((l) => l.trim().length > 0);
+  const cleanSteps = recipe.steps.filter((s) => s.text.trim().length > 0);
+  const cleanNotes = recipe.notes.filter((n) => n.trim().length > 0);
+  const scaledIngredients = cleanIngredients.map((line) =>
     transformIngredientLine(line, scaleFactor, unitSystem)
   );
-  const scaledSteps = recipe.steps.map((s) => ({
+  const scaledSteps = cleanSteps.map((s) => ({
     ...s,
     text: convertStepTemperatures(s.text, unitSystem),
   }));
@@ -58,12 +61,17 @@ export function compilePlainRecipeText(
     lines.push(`${idx + 1}. ${prefix}${step.text}`);
   });
 
-  if (recipe.notes.length > 0) {
+  if (cleanNotes.length > 0) {
     lines.push('', 'NOTES:');
-    for (const note of recipe.notes) {
+    for (const note of cleanNotes) {
       lines.push(`• ${note}`);
     }
   }
+
+  lines.push(
+    '',
+    'Disclaimer: While Ten Forward strives for accuracy, automated extraction, portion scaling, and unit conversions may occasionally make mistakes. Please double-check all measurements and timings against the original source.'
+  );
 
   return lines.join('\n');
 }
@@ -79,10 +87,13 @@ export function compileStandaloneRecipeHtml(
   showQrCode: boolean
 ): string {
   const scaleFactor = targetServings / Math.max(1, recipe.baseServings);
-  const scaledIngredients = recipe.ingredients.map((line) =>
+  const cleanIngredients = recipe.ingredients.filter((l) => l.trim().length > 0);
+  const cleanSteps = recipe.steps.filter((s) => s.text.trim().length > 0);
+  const cleanNotes = recipe.notes.filter((n) => n.trim().length > 0);
+  const scaledIngredients = cleanIngredients.map((line) =>
     transformIngredientLine(line, scaleFactor, unitSystem)
   );
-  const scaledSteps = recipe.steps.map((s) => ({
+  const scaledSteps = cleanSteps.map((s) => ({
     ...s,
     text: convertStepTemperatures(s.text, unitSystem),
   }));
@@ -304,11 +315,11 @@ export function compileStandaloneRecipeHtml(
             .join('\n          ')}
         </ol>
         ${
-          recipe.notes.length > 0
+          cleanNotes.length > 0
             ? `<div style="margin-top: 18px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <h2 style="border: none; margin-bottom: 4px; padding: 0;">Chef &amp; Galley Notes</h2>
+                <h2 style="border: none; margin-bottom: 4px; padding: 0;">Kitchen &amp; Chef Notes</h2>
                 <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
-                  ${recipe.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}
+                  ${cleanNotes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}
                 </ul>
               </div>`
             : ''
@@ -317,8 +328,11 @@ export function compileStandaloneRecipeHtml(
     </div>
 
     <footer class="footer">
+      <div style="width: 100%; color: #64748b; font-style: italic; margin-bottom: 4px;">
+        ⚠️ Accuracy Notice: While we strive for accuracy, automated recipe extraction, portion scaling, and unit conversions may occasionally make mistakes. Please double-check all measurements and timings against the original source.
+      </div>
       <div>Attributed to <strong>${escapeHtml(recipe.attribution.authorName)}</strong> (${escapeHtml(recipe.attribution.siteName)}) — <a href="${escapeHtml(recipe.attribution.sourceUrl)}">${escapeHtml(recipe.attribution.sourceUrl)}</a></div>
-      <div>Formatted with Ten Forward v1.6 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
+      <div>Formatted with Ten Forward v1.9 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
     </footer>
   </article>
 </body>

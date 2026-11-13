@@ -72,6 +72,11 @@ export function App() {
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const [wakeLockActive, setWakeLockActive] = useState<boolean>(false);
 
+  // Inline Kitchen & Chef Notes state (quick-add & click-to-edit right on the recipe card)
+  const [newNoteInput, setNewNoteInput] = useState<string>('');
+  const [editingNoteIndex, setEditingNoteIndex] = useState<number | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState<string>('');
+
   // Toast feedback & Post-Export Support Modal
   const [toast, setToast] = useState<string | null>(null);
   const [exportModalAction, setExportModalAction] = useState<string | null>(null);
@@ -100,7 +105,41 @@ export function App() {
     setTargetServings(next.baseServings || 4);
     setCheckedIngredients({});
     setActiveStepIndex(null);
+    setEditingNoteIndex(null);
+    setEditingNoteText('');
     setExtractError(null);
+  }, []);
+
+  // Whether the currently displayed recipe is already saved in the user's Galley Box
+  const isCurrentRecipeSaved = useMemo(
+    () =>
+      savedRecipes.some(
+        (entry) => entry.recipe.id === recipe.id || entry.recipe.title === recipe.title
+      ),
+    [savedRecipes, recipe.id, recipe.title]
+  );
+
+  /**
+   * Updates the active recipe and automatically syncs changes into the Galley Box (localStorage)
+   * if this recipe is already saved in the user's collection.
+   */
+  const updateActiveRecipe = useCallback((updater: (prev: RecipeData) => RecipeData) => {
+    setRecipe((prev) => {
+      const next = updater(prev);
+      setSavedRecipes((savedList) => {
+        const matchIdx = savedList.findIndex(
+          (item) => item.recipe.id === prev.id || item.recipe.title === prev.title
+        );
+        if (matchIdx === -1) return savedList;
+        const updatedList = [...savedList];
+        updatedList[matchIdx] = {
+          ...updatedList[matchIdx],
+          recipe: next,
+        };
+        return updatedList;
+      });
+      return next;
+    });
   }, []);
 
   /**
@@ -214,7 +253,7 @@ export function App() {
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       const dataUri = canvas.toDataURL('image/jpeg', 0.84);
 
-      setRecipe((prev) => ({
+      updateActiveRecipe((prev) => ({
         ...prev,
         heroImage: dataUri,
       }));
@@ -245,7 +284,7 @@ export function App() {
         if (!ctx) return;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
-        setRecipe((prev) => ({
+        updateActiveRecipe((prev) => ({
           ...prev,
           heroImage: dataUrl,
           candidateImages: [
@@ -282,7 +321,7 @@ export function App() {
     }
   };
 
-  // Compute scaled & unit-converted ingredients and steps
+  // Compute scaled & unit-converted ingredients, steps, and notes
   const scaleFactor = useMemo(
     () => targetServings / Math.max(1, recipe.baseServings),
     [targetServings, recipe.baseServings]
@@ -290,20 +329,81 @@ export function App() {
 
   const displayedIngredients = useMemo(
     () =>
-      recipe.ingredients.map((line) =>
-        transformIngredientLine(line, scaleFactor, unitSystem)
-      ),
+      recipe.ingredients
+        .filter((line) => line.trim().length > 0)
+        .map((line) => transformIngredientLine(line, scaleFactor, unitSystem)),
     [recipe.ingredients, scaleFactor, unitSystem]
   );
 
   const displayedSteps = useMemo(
     () =>
-      recipe.steps.map((step) => ({
-        ...step,
-        text: convertStepTemperatures(step.text, unitSystem),
-      })),
+      recipe.steps
+        .filter((step) => step.text.trim().length > 0)
+        .map((step) => ({
+          ...step,
+          text: convertStepTemperatures(step.text, unitSystem),
+        })),
     [recipe.steps, unitSystem]
   );
+
+  const displayedNotes = useMemo(
+    () => recipe.notes.filter((note) => note.trim().length > 0),
+    [recipe.notes]
+  );
+
+  // Inline Kitchen & Chef Notes Handlers
+  const handleAddNote = () => {
+    const trimmed = newNoteInput.trim();
+    if (!trimmed) return;
+    updateActiveRecipe((prev) => ({
+      ...prev,
+      notes: [...prev.notes.filter((n) => n.trim().length > 0), trimmed],
+    }));
+    setNewNoteInput('');
+    showToast(
+      isCurrentRecipeSaved
+        ? 'Added kitchen note (auto-saved in your Galley Box)!'
+        : 'Added kitchen note to recipe card!'
+    );
+  };
+
+  const handleStartEditNote = (index: number, currentText: string) => {
+    setEditingNoteIndex(index);
+    setEditingNoteText(currentText);
+  };
+
+  const handleSaveEditedNote = (index: number) => {
+    const trimmed = editingNoteText.trim();
+    updateActiveRecipe((prev) => {
+      const clean = prev.notes.filter((n) => n.trim().length > 0);
+      if (!trimmed) {
+        return { ...prev, notes: clean.filter((_, i) => i !== index) };
+      }
+      return {
+        ...prev,
+        notes: clean.map((n, i) => (i === index ? trimmed : n)),
+      };
+    });
+    setEditingNoteIndex(null);
+    setEditingNoteText('');
+    showToast(
+      isCurrentRecipeSaved
+        ? 'Updated kitchen note (auto-saved in your Galley Box)!'
+        : 'Updated kitchen note!'
+    );
+  };
+
+  const handleDeleteNote = (index: number) => {
+    updateActiveRecipe((prev) => ({
+      ...prev,
+      notes: prev.notes.filter((n) => n.trim().length > 0).filter((_, i) => i !== index),
+    }));
+    if (editingNoteIndex === index) {
+      setEditingNoteIndex(null);
+      setEditingNoteText('');
+    }
+    showToast('Removed kitchen note.');
+  };
 
   // Export & Save Handlers
   const handlePrintCard = () => {
@@ -340,16 +440,77 @@ export function App() {
     showToast('Copied recipe text (with creator credit & source link) to clipboard!');
   };
 
+  /**
+   * Opens the device's native Share Sheet (iMessage, WhatsApp, AirDrop, Email) on phones/tablets,
+   * or falls back to copying the formatted recipe text & link to the clipboard on desktop.
+   */
+  const handleShareRecipe = async () => {
+    const plain = compilePlainRecipeText(recipe, targetServings, unitSystem);
+    const isExternalSource =
+      /^https?:\/\//i.test(recipe.attribution.sourceUrl) &&
+      !recipe.attribution.sourceUrl.includes('ten-forward.the-lal.net');
+    const shareCardUrl = isExternalSource
+      ? `https://ten-forward.the-lal.net/?url=${encodeURIComponent(recipe.attribution.sourceUrl)}`
+      : 'https://ten-forward.the-lal.net';
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: `${recipe.title} — Recipe by ${recipe.attribution.authorName}`,
+          text: plain,
+          url: shareCardUrl,
+        });
+        showToast('Opened device Share sheet!');
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+
+    await navigator.clipboard.writeText(`${plain}\n\nOpen in Ten Forward: ${shareCardUrl}`);
+    showToast('Copied recipe text & shareable link to clipboard!');
+  };
+
   const handleSaveToGalleyBox = () => {
-    const entry: SavedRecipeEntry = {
-      id: `${recipe.id}-${Date.now()}`,
-      savedAt: new Date().toISOString().slice(0, 10),
-      recipe: { ...recipe },
+    const today = new Date().toISOString().slice(0, 10);
+    const cleanRecipe: RecipeData = {
+      ...recipe,
+      ingredients: recipe.ingredients.filter((l) => l.trim().length > 0),
+      steps: recipe.steps.filter((s) => s.text.trim().length > 0),
+      notes: recipe.notes.filter((n) => n.trim().length > 0),
     };
-    setSavedRecipes((prev) => [entry, ...prev]);
-    loadRecipe(entry.recipe);
+
+    setSavedRecipes((prev) => {
+      const existingIdx = prev.findIndex(
+        (item) =>
+          item.recipe.id === cleanRecipe.id || item.recipe.title === cleanRecipe.title
+      );
+      if (existingIdx !== -1) {
+        const updatedEntry: SavedRecipeEntry = {
+          ...prev[existingIdx],
+          savedAt: today,
+          recipe: cleanRecipe,
+        };
+        const rest = prev.filter((_, i) => i !== existingIdx);
+        return [updatedEntry, ...rest];
+      }
+      const newEntry: SavedRecipeEntry = {
+        id: `${cleanRecipe.id}-${Date.now()}`,
+        savedAt: today,
+        recipe: cleanRecipe,
+      };
+      return [newEntry, ...prev];
+    });
+
+    loadRecipe(cleanRecipe);
     setInputTab('saved');
-    showToast(`Saved "${recipe.title}" into your Galley Box (and set as active recipe below)!`);
+    showToast(
+      isCurrentRecipeSaved
+        ? `Updated "${cleanRecipe.title}" in your Galley Box!`
+        : `Saved "${cleanRecipe.title}" into your Galley Box (and set as active recipe below)!`
+    );
   };
 
   const handleDeleteSaved = (id: string) => {
@@ -414,9 +575,9 @@ export function App() {
                 <span>Ten Forward</span>
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.6"
+                  title="Ten Forward Application Version 1.9"
                 >
-                  v1.6
+                  v1.9
                 </span>
                 <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Creator Attribution + Zero Tracking
@@ -864,10 +1025,18 @@ export function App() {
                   <button
                     type="button"
                     onClick={handleSaveToGalleyBox}
-                    title={`Save the currently open recipe ("${recipe.title}") into your Galley Box`}
-                    className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
+                    title={
+                      isCurrentRecipeSaved
+                        ? `Update "${recipe.title}" in your Galley Box`
+                        : `Save the currently open recipe ("${recipe.title}") into your Galley Box`
+                    }
+                    className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-colors cursor-pointer ${
+                      isCurrentRecipeSaved
+                        ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300'
+                        : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950'
+                    }`}
                   >
-                    + Save Current Recipe
+                    {isCurrentRecipeSaved ? '✓ Saved in Galley Box' : '+ Save Current Recipe'}
                   </button>
                   {savedRecipes.length > 0 && (
                     <button
@@ -950,6 +1119,9 @@ export function App() {
                             </div>
                             <div className="text-[11px] text-slate-400 mt-1">
                               Saved {entry.savedAt} &bull; {entry.recipe.ingredients.length} ingredients
+                              {entry.recipe.notes && entry.recipe.notes.length > 0
+                                ? ` • 📝 ${entry.recipe.notes.length} note${entry.recipe.notes.length === 1 ? '' : 's'}`
+                                : ''}
                             </div>
                           </div>
                         </div>
@@ -1113,24 +1285,32 @@ export function App() {
               <button
                 type="button"
                 onClick={handleSaveToGalleyBox}
-                title="Save this recipe inside your browser's Galley Box"
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
+                title={
+                  isCurrentRecipeSaved
+                    ? 'Already saved in your Galley Box (tap to view or update)'
+                    : "Save this recipe inside your browser's Galley Box"
+                }
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
+                  isCurrentRecipeSaved
+                    ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-300'
+                    : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-100'
+                }`}
               >
-                🗃️ Save
+                {isCurrentRecipeSaved ? '✓ Saved' : '🗃️ Save'}
               </button>
               <button
                 type="button"
-                onClick={handleCopyRecipeText}
-                title="Copy clean recipe text to clipboard"
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
+                onClick={() => void handleShareRecipe()}
+                title="Share this recipe via iMessage, WhatsApp, AirDrop, Email, or copy link"
+                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
               >
-                📋 Copy
+                📤 Share
               </button>
               <button
                 type="button"
                 onClick={handlePrintCard}
                 title="Print or Save as PDF"
-                className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer"
               >
                 🖨️ Print / PDF
               </button>
@@ -1224,15 +1404,23 @@ export function App() {
                   <button
                     type="button"
                     onClick={handleSaveToGalleyBox}
-                    title="Bookmark this recipe inside your browser's personal Galley Box (Saved Recipes) for instant offline access later"
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                    title={
+                      isCurrentRecipeSaved
+                        ? 'This recipe is saved in your Galley Box (any edits or notes auto-save). Click to view in Galley Box.'
+                        : "Bookmark this recipe inside your browser's personal Galley Box (Saved Recipes) for instant offline access later"
+                    }
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
+                      isCurrentRecipeSaved
+                        ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                    }`}
                   >
-                    🗃️ Save to Galley Box
+                    {isCurrentRecipeSaved ? '✓ Saved in Galley Box' : '🗃️ Save to Galley Box'}
                   </button>
-                  <InfoTooltip text="Saves a copy of this recipe inside your browser's personal Galley Box (Tab 4) so you can reopen it anytime without re-scraping the website." />
+                  <InfoTooltip text="Saves a copy of this recipe (and your personal kitchen notes) inside your browser's Galley Box (Tab 4) so you can reopen it anytime without re-scraping the website." />
                 </div>
 
-                <div className="hidden md:inline-flex items-center gap-1">
+                <div className="inline-flex items-center gap-1">
                   <button
                     type="button"
                     onClick={handleCopyRecipeText}
@@ -1241,7 +1429,19 @@ export function App() {
                   >
                     📋 Copy Text
                   </button>
-                  <InfoTooltip text="Copies the clean recipe text (including scaled ingredients, steps, and original source link) so you can paste it into an email, text message, or notes app." />
+                  <InfoTooltip text="Copies the clean recipe text (including scaled ingredients, steps, notes, and original source link) so you can paste it into an email, text message, or notes app." />
+                </div>
+
+                <div className="hidden md:inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleShareRecipe()}
+                    title="Share this recipe via your device's native Share sheet (iMessage, WhatsApp, AirDrop, Email) or copy shareable link"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                  >
+                    📤 Share
+                  </button>
+                  <InfoTooltip text="Opens your phone, tablet, or computer's native Share sheet to send the clean recipe text and link via WhatsApp, iMessage, AirDrop, or Email." />
                 </div>
 
                 <div className="inline-flex items-center gap-1">
@@ -1284,7 +1484,7 @@ export function App() {
                       <button
                         key={`${img.url}-${i}`}
                         type="button"
-                        onClick={() => setRecipe((prev) => ({ ...prev, heroImage: img.url }))}
+                        onClick={() => updateActiveRecipe((prev) => ({ ...prev, heroImage: img.url }))}
                         title={`Select photo #${i + 1} (${img.source})`}
                         className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
                           selected
@@ -1324,14 +1524,14 @@ export function App() {
           <section className="bg-slate-900 border border-cyan-500/40 rounded-2xl p-5 shadow-xl space-y-4 no-print">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <h2 className="text-sm font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
-                Edit Recipe &amp; Creator Attribution
-                <InfoTooltip text="Customize any detail or fix a scraped ingredient line before printing or saving." />
+                Edit Recipe, Attribution &amp; Notes
+                <InfoTooltip text="Customize any detail, fix a scraped ingredient line, or edit your personal kitchen notes before printing or saving." />
               </h2>
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
                 title="Close editor panel"
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs text-slate-400 hover:text-white cursor-pointer"
               >
                 Close &times;
               </button>
@@ -1345,7 +1545,7 @@ export function App() {
                 <input
                   type="text"
                   value={recipe.title}
-                  onChange={(e) => setRecipe((p) => ({ ...p, title: e.target.value }))}
+                  onChange={(e) => updateActiveRecipe((p) => ({ ...p, title: e.target.value }))}
                   title="Edit recipe title"
                   className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-1.5 text-xs text-white"
                 />
@@ -1358,7 +1558,7 @@ export function App() {
                   type="text"
                   value={recipe.attribution.authorName}
                   onChange={(e) =>
-                    setRecipe((p) => ({
+                    updateActiveRecipe((p) => ({
                       ...p,
                       attribution: { ...p.attribution, authorName: e.target.value },
                     }))
@@ -1375,7 +1575,7 @@ export function App() {
                   type="text"
                   value={recipe.attribution.siteName}
                   onChange={(e) =>
-                    setRecipe((p) => ({
+                    updateActiveRecipe((p) => ({
                       ...p,
                       attribution: { ...p.attribution, siteName: e.target.value },
                     }))
@@ -1393,7 +1593,7 @@ export function App() {
                   value={recipe.attribution.sourceUrl}
                   onChange={(e) => {
                     const nextUrl = cleanCanonicalUrl(e.target.value);
-                    setRecipe((p) => ({
+                    updateActiveRecipe((p) => ({
                       ...p,
                       attribution: {
                         ...p.attribution,
@@ -1413,7 +1613,7 @@ export function App() {
                 <input
                   type="text"
                   value={recipe.prepTime}
-                  onChange={(e) => setRecipe((p) => ({ ...p, prepTime: e.target.value }))}
+                  onChange={(e) => updateActiveRecipe((p) => ({ ...p, prepTime: e.target.value }))}
                   title="Edit preparation time"
                   className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-1.5 text-xs text-white"
                 />
@@ -1425,7 +1625,7 @@ export function App() {
                 <input
                   type="text"
                   value={recipe.cookTime}
-                  onChange={(e) => setRecipe((p) => ({ ...p, cookTime: e.target.value }))}
+                  onChange={(e) => updateActiveRecipe((p) => ({ ...p, cookTime: e.target.value }))}
                   title="Edit cook time"
                   className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-1.5 text-xs text-white"
                 />
@@ -1441,9 +1641,15 @@ export function App() {
                   rows={7}
                   value={recipe.ingredients.join('\n')}
                   onChange={(e) =>
-                    setRecipe((p) => ({
+                    updateActiveRecipe((p) => ({
                       ...p,
-                      ingredients: e.target.value.split('\n').filter((l) => l.trim().length > 0),
+                      ingredients: e.target.value.split('\n'),
+                    }))
+                  }
+                  onBlur={() =>
+                    updateActiveRecipe((p) => ({
+                      ...p,
+                      ingredients: p.ingredients.filter((l) => l.trim().length > 0),
                     }))
                   }
                   title="Edit ingredient list (one ingredient per line)"
@@ -1458,21 +1664,51 @@ export function App() {
                   rows={7}
                   value={recipe.steps.map((s) => s.text).join('\n')}
                   onChange={(e) =>
-                    setRecipe((p) => ({
+                    updateActiveRecipe((p) => ({
                       ...p,
-                      steps: e.target.value
-                        .split('\n')
-                        .filter((l) => l.trim().length > 0)
-                        .map((text, idx) => ({
-                          id: `step-${idx + 1}`,
-                          text,
-                        })),
+                      steps: e.target.value.split('\n').map((text, idx) => ({
+                        id: `step-${idx + 1}`,
+                        text,
+                      })),
+                    }))
+                  }
+                  onBlur={() =>
+                    updateActiveRecipe((p) => ({
+                      ...p,
+                      steps: p.steps
+                        .filter((s) => s.text.trim().length > 0)
+                        .map((s, idx) => ({ ...s, id: `step-${idx + 1}` })),
                     }))
                   }
                   title="Edit instruction steps (one step per line)"
                   className="w-full rounded-xl bg-slate-950 border border-slate-700 p-3 text-xs text-white font-mono"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] uppercase text-slate-400 font-semibold mb-1">
+                Kitchen &amp; Chef Notes (One note per line — or add/edit directly on the card below)
+              </label>
+              <textarea
+                rows={3}
+                value={recipe.notes.join('\n')}
+                onChange={(e) =>
+                  updateActiveRecipe((p) => ({
+                    ...p,
+                    notes: e.target.value.split('\n'),
+                  }))
+                }
+                onBlur={() =>
+                  updateActiveRecipe((p) => ({
+                    ...p,
+                    notes: p.notes.filter((n) => n.trim().length > 0),
+                  }))
+                }
+                placeholder={`Bake 5 minutes less in a convection oven.\nAdd extra garlic or smoked paprika.`}
+                title="Edit kitchen and chef notes (one note per line)"
+                className="w-full rounded-xl bg-slate-950 border border-slate-700 p-3 text-xs text-white font-mono"
+              />
             </div>
           </section>
         )}
@@ -1661,6 +1897,9 @@ export function App() {
                   );
                 })}
               </ul>
+              <p className="pt-2 text-[11px] leading-relaxed text-slate-400 print:text-slate-600 italic">
+                ⚠️ Please double-check all measurements — automated extraction, scaling, and unit conversions may occasionally make mistakes.
+              </p>
             </div>
 
             {/* Right Column: Numbered Steps + Chef Notes */}
@@ -1714,51 +1953,198 @@ export function App() {
                 })}
               </ol>
 
-              {/* Chef & Galley Notes */}
-              {recipe.notes.length > 0 && (
-                <div className="mt-6 p-5 rounded-xl bg-slate-950/80 border border-slate-800 print:bg-slate-50 print:border-slate-300">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 print:text-slate-900 mb-2.5">
-                    Chef &amp; Galley Notes
+              {/* Interactive Kitchen & Chef Notes (Always accessible on screen; hidden in print only when empty) */}
+              <div
+                className={`mt-6 p-4 sm:p-5 rounded-xl bg-slate-950/80 border border-slate-800 print:bg-slate-50 print:border-slate-300 space-y-3 ${
+                  displayedNotes.length === 0 ? 'no-print' : ''
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 print:text-slate-900 flex items-center gap-1.5">
+                    <span>📝 Kitchen &amp; Chef Notes</span>
+                    <InfoTooltip text="Jot down your own cooking tweaks, substitutions, oven times, or family ratings. Click any note to edit it inline. If this recipe is saved in your Galley Box, changes auto-save automatically!" />
                   </h4>
-                  <ul className="list-disc pl-5 space-y-1.5 text-xs leading-relaxed text-slate-300 print:text-slate-800">
-                    {recipe.notes.map((note, i) => (
-                      <li key={i}>{note}</li>
-                    ))}
-                  </ul>
+
+                  <div className="flex items-center gap-2 no-print">
+                    {isCurrentRecipeSaved ? (
+                      <span
+                        className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                        title="This recipe is saved in your Galley Box — any notes you add or edit are saved automatically"
+                      >
+                        ✓ Auto-saved in Galley Box
+                      </span>
+                    ) : (
+                      displayedNotes.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleSaveToGalleyBox}
+                          title="Save this recipe and your notes into your browser's Galley Box"
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 transition-colors cursor-pointer"
+                        >
+                          🗃️ Save with Notes to Galley Box
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
-              )}
+
+                {/* Existing Notes List (Click to Edit Inline on Screen, Clean Bullets in Print) */}
+                {displayedNotes.length > 0 ? (
+                  <ul className="space-y-2 text-xs sm:text-sm leading-relaxed text-slate-200 print:text-slate-800 print:list-disc print:pl-5 print:space-y-1.5">
+                    {displayedNotes.map((note, i) => {
+                      const isEditingThisNote = editingNoteIndex === i;
+                      return (
+                        <li
+                          key={i}
+                          className="group rounded-lg bg-slate-900/80 border border-slate-800/90 hover:border-slate-700 p-2.5 sm:px-3 sm:py-2 transition-colors print:bg-transparent print:border-none print:p-0"
+                        >
+                          {isEditingThisNote ? (
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 no-print">
+                              <input
+                                type="text"
+                                autoFocus
+                                value={editingNoteText}
+                                onChange={(e) => setEditingNoteText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveEditedNote(i);
+                                  if (e.key === 'Escape') {
+                                    setEditingNoteIndex(null);
+                                    setEditingNoteText('');
+                                  }
+                                }}
+                                title="Edit note text"
+                                className="flex-1 rounded-lg bg-slate-950 border border-cyan-400 px-3 py-1.5 text-xs sm:text-sm text-white focus:outline-none"
+                              />
+                              <div className="flex items-center gap-1.5 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditedNote(i)}
+                                  title="Save note changes"
+                                  className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingNoteIndex(null);
+                                    setEditingNoteText('');
+                                  }}
+                                  title="Cancel editing"
+                                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditNote(i, note)}
+                                title="Click to edit this kitchen note"
+                                className="text-left flex-1 flex items-start gap-2 cursor-pointer group-hover:text-white transition-colors"
+                              >
+                                <span className="text-cyan-400 font-bold select-none print:hidden">
+                                  &bull;
+                                </span>
+                                <span>{note}</span>
+                              </button>
+                              <div className="flex items-center gap-1 shrink-0 no-print">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditNote(i, note)}
+                                  title="Edit this note"
+                                  className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-300 text-[11px] font-medium transition-colors cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteNote(i)}
+                                  title="Remove this note"
+                                  className="px-1.5 py-0.5 rounded bg-slate-800/80 hover:bg-red-500/20 text-slate-500 hover:text-red-300 text-xs transition-colors cursor-pointer"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-400 italic no-print">
+                    No notes yet — add your own cooking adjustments, substitutions, or oven tips below so they stay with this recipe card (and appear on printouts).
+                  </p>
+                )}
+
+                {/* Quick-Add Note Input Bar (Hidden in Print) */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1 no-print">
+                  <input
+                    type="text"
+                    value={newNoteInput}
+                    onChange={(e) => setNewNoteInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddNote();
+                      }
+                    }}
+                    placeholder='Add a personal kitchen note (e.g., "Bake 5 mins less", "Great with extra lemon")...'
+                    title="Type a personal kitchen note and press Enter or click + Add Note"
+                    className="flex-1 rounded-xl bg-slate-900 border border-slate-700/90 px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
+                  />
+                  <button
+                    type="button"
+                    disabled={!newNoteInput.trim()}
+                    onClick={handleAddNote}
+                    title="Add this note to the recipe card"
+                    className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:hover:bg-cyan-500 text-slate-950 font-bold text-xs shrink-0 transition-colors cursor-pointer"
+                  >
+                    + Add Note
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Permanent Bottom Attribution Footer */}
-          <footer className="mt-8 pt-5 border-t border-slate-800 print:border-slate-300 flex flex-wrap items-center justify-between gap-3 text-[11px] leading-relaxed text-slate-400 print:text-slate-600">
-            <div>
-              Credit: <strong>{recipe.attribution.authorName}</strong> &bull;{' '}
-              <strong>{recipe.attribution.siteName}</strong> (
-              <a
-                href={recipe.attribution.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-cyan-400 print:text-slate-900 underline"
-              >
-                {recipe.attribution.sourceUrl}
-              </a>
-              )
+          {/* Permanent Bottom Attribution & Accuracy Disclaimer Footer */}
+          <footer className="mt-8 pt-5 border-t border-slate-800 print:border-slate-300 space-y-3 text-[11px] leading-relaxed text-slate-400 print:text-slate-600">
+            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-200/90 print:bg-slate-50 print:border-slate-300 print:text-slate-700">
+              <strong className="text-amber-300 print:text-slate-900">⚠️ Accuracy Disclaimer:</strong>{' '}
+              While we try to be as accurate as possible, automated recipe extraction, portion scaling, and unit conversions may occasionally make mistakes. Please double-check all measurements, temperatures, and timings against the original source link below before cooking.
             </div>
-            <div className="flex items-center gap-3">
-              <span>
-                Formatted with Ten Forward v1.6 (ten-forward.the-lal.net) &bull; Extracted{' '}
-                {recipe.attribution.extractedAt}
-              </span>
-              <a
-                href="https://buymeacoffee.com/curiouslyso"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Support independent privacy-first browser utilities on Buy Me a Coffee"
-                className="text-amber-300 hover:text-amber-200 font-medium transition-colors no-print"
-              >
-                ☕ Support the dev
-              </a>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                Credit: <strong>{recipe.attribution.authorName}</strong> &bull;{' '}
+                <strong>{recipe.attribution.siteName}</strong> (
+                <a
+                  href={recipe.attribution.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 print:text-slate-900 underline"
+                >
+                  {recipe.attribution.sourceUrl}
+                </a>
+                )
+              </div>
+              <div className="flex items-center gap-3">
+                <span>
+                  Formatted with Ten Forward v1.9 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                  {recipe.attribution.extractedAt}
+                </span>
+                <a
+                  href="https://buymeacoffee.com/curiouslyso"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Support independent privacy-first browser utilities on Buy Me a Coffee"
+                  className="text-amber-300 hover:text-amber-200 font-medium transition-colors no-print"
+                >
+                  ☕ Support the dev
+                </a>
+              </div>
             </div>
           </footer>
         </article>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bgTenForward" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <pattern id="gridTenForward" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#06b6d4" stroke-opacity="0.12" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Canvas background & outer card frame -->
+  <rect width="1200" height="630" fill="url(#bgTenForward)"/>
+  <rect width="1200" height="630" fill="url(#gridTenForward)"/>
+  <rect x="90" y="90" width="1020" height="450" rx="28" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- Left preview graphic: stylized Galley Recipe Card with dish cover photo, QR box, checkable ingredients, and steps -->
+  <rect x="145" y="145" width="315" height="340" rx="18" fill="#1e293b" stroke="#38bdf8" stroke-opacity="0.5" stroke-width="2"/>
+  <!-- Recipe title & attribution bar + mini QR code -->
+  <line x1="175" y1="180" x2="345" y2="180" stroke="#f8fafc" stroke-width="9" stroke-linecap="round"/>
+  <line x1="175" y1="202" x2="320" y2="202" stroke="#22d3ee" stroke-width="5" stroke-linecap="round"/>
+  <rect x="378" y="168" width="54" height="54" rx="8" fill="#083344" stroke="#22d3ee" stroke-width="2"/>
+  <rect x="388" y="178" width="12" height="12" fill="#22d3ee"/>
+  <rect x="410" y="178" width="12" height="12" fill="#22d3ee"/>
+  <rect x="388" y="200" width="12" height="12" fill="#22d3ee"/>
+  <rect x="406" y="196" width="16" height="16" fill="#38bdf8"/>
+
+  <!-- Dish hero photo banner -->
+  <rect x="175" y="232" width="257" height="72" rx="10" fill="#083344" stroke="#06b6d4" stroke-width="1.5"/>
+  <ellipse cx="303" cy="274" rx="46" ry="18" fill="#155e75" stroke="#22d3ee" stroke-width="2"/>
+  <path d="M285 252 Q290 242 285 236 M303 250 Q308 240 303 234 M321 252 Q326 242 321 236" stroke="#67e8f9" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Two-column ingredients & steps lines -->
+  <rect x="175" y="324" width="10" height="10" rx="2" fill="none" stroke="#22d3ee" stroke-width="2"/>
+  <line x1="194" y1="329" x2="256" y2="329" stroke="#cbd5e1" stroke-width="5" stroke-linecap="round"/>
+  <rect x="175" y="348" width="10" height="10" rx="2" fill="none" stroke="#22d3ee" stroke-width="2"/>
+  <line x1="194" y1="353" x2="248" y2="353" stroke="#cbd5e1" stroke-width="5" stroke-linecap="round"/>
+  <rect x="175" y="372" width="10" height="10" rx="2" fill="none" stroke="#22d3ee" stroke-width="2"/>
+  <line x1="194" y1="377" x2="254" y2="377" stroke="#cbd5e1" stroke-width="5" stroke-linecap="round"/>
+
+  <line x1="282" y1="329" x2="428" y2="329" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+  <line x1="282" y1="353" x2="412" y2="353" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+  <line x1="282" y1="377" x2="424" y2="377" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Kitchen Notes bar at bottom of card -->
+  <rect x="175" y="404" width="257" height="52" rx="8" fill="#0f172a" stroke="#22d3ee" stroke-opacity="0.4" stroke-width="1.5"/>
+  <line x1="190" y1="422" x2="295" y2="422" stroke="#22d3ee" stroke-width="5" stroke-linecap="round"/>
+  <line x1="190" y1="440" x2="405" y2="440" stroke="#64748b" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Right typography & status badges -->
+  <text x="515" y="215" fill="#22d3ee" font-family="monospace" font-size="22" font-weight="bold" letter-spacing="3">RECIPE EXTRACTOR &amp; GALLEY CARD</text>
+  <text x="515" y="285" fill="#ffffff" font-family="system-ui, sans-serif" font-size="52" font-weight="800">Ten Forward</text>
+  <text x="515" y="340" fill="#e2e8f0" font-family="system-ui, sans-serif" font-size="28" font-weight="600">Ad-Free Recipe Scraper &amp; Galley Box</text>
+  <text x="515" y="388" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="23">Portion Scaler • Metric/Imperial • Print PDF &amp; QR</text>
+
+  <!-- Feature pills -->
+  <rect x="515" y="420" width="245" height="50" rx="12" fill="#083344" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="542" y="452" fill="#67e8f9" font-family="monospace" font-size="19">Creator Credit</text>
+  <rect x="780" y="420" width="245" height="50" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="812" y="452" fill="#6ee7b7" font-family="monospace" font-size="19">Zero Tracking</text>
+</svg>
