@@ -164,11 +164,13 @@ export function compileStandaloneRecipeHtml(
     }
     .attribution-box {
       background: #f1f5f9;
+      border: 1px solid #cbd5e1;
       border-left: 4px solid #06b6d4;
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 12px 16px;
+      border-radius: 8px;
       font-size: 13px;
-      margin-top: 8px;
+      margin-top: 10px;
+      line-height: 1.6;
     }
     .attribution-box a {
       color: #0e7490;
@@ -178,28 +180,28 @@ export function compileStandaloneRecipeHtml(
     .qr-box {
       text-align: center;
       flex-shrink: 0;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
       background: #ffffff;
     }
     .qr-caption {
       font-size: 9px;
       color: #475569;
-      margin-top: 3px;
-      max-width: 88px;
-      line-height: 1.2;
+      margin-top: 5px;
+      max-width: 96px;
+      line-height: 1.3;
     }
     .meta-strip {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px;
+      gap: 18px;
       font-size: 13px;
       background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 20px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
     }
     .hero-img {
       width: 100%;
@@ -263,8 +265,9 @@ export function compileStandaloneRecipeHtml(
       gap: 8px;
     }
     @media print {
+      @page { margin: 14mm; }
       body { background: #fff; padding: 0; }
-      .card { border: none; box-shadow: none; padding: 0; }
+      .card { border: 1px solid #cbd5e1; box-shadow: none; padding: 28px 32px; }
     }
   </style>
 </head>

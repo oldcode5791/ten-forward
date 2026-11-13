@@ -13,7 +13,7 @@ export function QrCodeBox({ url, domain, size = 84 }: QrCodeBoxProps) {
     [url]
   );
   const n = matrix.length;
-  const quiet = 2;
+  const quiet = 3;
   const viewSize = n + quiet * 2;
 
   const pathData = useMemo(() => {
@@ -30,7 +30,7 @@ export function QrCodeBox({ url, domain, size = 84 }: QrCodeBoxProps) {
 
   return (
     <div
-      className="inline-flex flex-col items-center p-2 rounded-lg bg-white text-slate-900 border border-slate-300 shadow-sm shrink-0"
+      className="inline-flex flex-col items-center p-3 rounded-xl bg-white text-slate-900 border border-slate-300 shadow-sm shrink-0"
       title={`Scan QR code with your phone camera to open the original recipe on ${domain}`}
     >
       <svg
@@ -44,7 +44,7 @@ export function QrCodeBox({ url, domain, size = 84 }: QrCodeBoxProps) {
         <rect width={viewSize} height={viewSize} fill="#ffffff" />
         <path d={pathData} fill="#0f172a" />
       </svg>
-      <span className="text-[9px] font-mono text-slate-600 mt-1 max-w-[90px] text-center leading-tight truncate">
+      <span className="text-[10px] font-mono text-slate-600 mt-1.5 px-1 max-w-[100px] text-center leading-snug truncate">
         {domain || 'original source'}
       </span>
     </div>

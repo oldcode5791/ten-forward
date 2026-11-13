@@ -422,7 +422,7 @@ export function App() {
       )}
 
       {/* Main Content Container */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 space-y-6">
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 print:px-0 print:py-0 flex-1 space-y-6">
         {/* 1. Extraction & Source Input Deck (Hidden in Print) */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl no-print">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3.5 mb-4">
@@ -1107,10 +1107,10 @@ export function App() {
         {/* 4. Printable / Saveable Galley Recipe Card */}
         <article className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl print-card">
           {/* Card Header + Mandatory Creator Attribution Banner + QR Code */}
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-6 border-b border-slate-800 print:border-slate-300">
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 print:bg-slate-100 print:text-slate-800 print:border-slate-400">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-6 mb-6 border-b border-slate-800 print:border-slate-300">
+            <div className="space-y-3 flex-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="text-[11px] font-mono uppercase tracking-wider px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 print:bg-slate-100 print:text-slate-800 print:border-slate-400">
                   {recipe.category || 'Galley Recipe'}
                 </span>
                 {recipe.cuisine && (
@@ -1120,7 +1120,7 @@ export function App() {
                 )}
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white print:text-slate-950">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white print:text-slate-950 leading-snug">
                 {recipe.title}
               </h2>
 
@@ -1131,8 +1131,8 @@ export function App() {
               )}
 
               {/* Prominent Creator Attribution Banner (Never hidden in print or screen) */}
-              <div className="mt-3 p-3.5 rounded-xl bg-slate-950/90 border-l-4 border-cyan-400 border border-slate-800 print:bg-slate-100 print:border-slate-300 print:border-l-4 print:border-l-cyan-600">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <div className="mt-4 p-4 sm:px-5 sm:py-4 rounded-xl bg-slate-950/90 border-l-4 border-cyan-400 border border-slate-800 print:bg-slate-50 print:border-slate-300 print:border-l-4 print:border-l-cyan-600">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs leading-relaxed">
                   <span className="font-bold text-cyan-300 print:text-slate-900">
                     Recipe by {recipe.attribution.authorName}
                   </span>
@@ -1149,7 +1149,7 @@ export function App() {
                     </>
                   )}
                 </div>
-                <div className="mt-1 text-xs text-slate-400 print:text-slate-700 break-all">
+                <div className="mt-1.5 text-xs text-slate-400 print:text-slate-700 break-all leading-relaxed">
                   Original Source:{' '}
                   <a
                     href={recipe.attribution.sourceUrl}
@@ -1175,8 +1175,8 @@ export function App() {
           </div>
 
           {/* Timing & Yield Metadata Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 my-5 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/90 print:bg-slate-50 print:border-slate-300 text-xs">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 my-6 px-5 py-4 rounded-xl bg-slate-950/70 border border-slate-800/90 print:bg-slate-50 print:border-slate-300 text-xs">
+            <div className="space-y-0.5">
               <span className="block text-[10px] font-mono uppercase text-slate-400 print:text-slate-600">
                 Servings
               </span>
@@ -1189,7 +1189,7 @@ export function App() {
                 )}
               </span>
             </div>
-            <div>
+            <div className="space-y-0.5">
               <span className="block text-[10px] font-mono uppercase text-slate-400 print:text-slate-600">
                 Prep Time
               </span>
@@ -1197,7 +1197,7 @@ export function App() {
                 {recipe.prepTime || '—'}
               </span>
             </div>
-            <div>
+            <div className="space-y-0.5">
               <span className="block text-[10px] font-mono uppercase text-slate-400 print:text-slate-600">
                 Cook Time
               </span>
@@ -1205,7 +1205,7 @@ export function App() {
                 {recipe.cookTime || '—'}
               </span>
             </div>
-            <div>
+            <div className="space-y-0.5">
               <span className="block text-[10px] font-mono uppercase text-slate-400 print:text-slate-600">
                 Total Time
               </span>
@@ -1213,7 +1213,7 @@ export function App() {
                 {recipe.totalTime || '—'}
               </span>
             </div>
-            <div>
+            <div className="space-y-0.5">
               <span className="block text-[10px] font-mono uppercase text-slate-400 print:text-slate-600">
                 Calories
               </span>
@@ -1225,7 +1225,7 @@ export function App() {
 
           {/* Hero Dish Photo */}
           {photoMode !== 'no-photos' && recipe.heroImage && (
-            <div className="mb-6 rounded-xl overflow-hidden border border-slate-800 print:border-slate-300 bg-slate-950">
+            <div className="mb-7 rounded-xl overflow-hidden border border-slate-800 print:border-slate-300 bg-slate-950">
               <img
                 src={recipe.heroImage}
                 alt={recipe.title}
@@ -1238,7 +1238,7 @@ export function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left Column: Checkable Ingredients */}
             <div className="lg:col-span-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 print:border-slate-300 pb-2">
+              <div className="flex items-center justify-between border-b border-slate-800 print:border-slate-300 pb-3 mb-2">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-slate-900 flex items-center gap-1.5">
                   Ingredients
                   <InfoTooltip text="Click any ingredient while prepping to check it off." />
@@ -1256,9 +1256,9 @@ export function App() {
                 {displayedIngredients.map((line, idx) => {
                   const checked = Boolean(checkedIngredients[idx]);
                   return (
-                    <li key={idx} className="py-2">
+                    <li key={idx} className="py-2.5 px-1">
                       <label
-                        className="flex items-start gap-2.5 text-sm cursor-pointer select-none"
+                        className="flex items-start gap-3 text-sm leading-relaxed cursor-pointer select-none"
                         title="Click to check or uncheck this ingredient"
                       >
                         <input
@@ -1270,7 +1270,7 @@ export function App() {
                               [idx]: !prev[idx],
                             }))
                           }
-                          className="mt-1 accent-cyan-400 rounded"
+                          className="mt-1 accent-cyan-400 rounded shrink-0"
                         />
                         <span
                           className={
@@ -1290,7 +1290,7 @@ export function App() {
 
             {/* Right Column: Numbered Steps + Chef Notes */}
             <div className="lg:col-span-8 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 print:border-slate-300 pb-2">
+              <div className="flex items-center justify-between border-b border-slate-800 print:border-slate-300 pb-3 mb-2">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-slate-900 flex items-center gap-1.5">
                   Preparation Instructions
                   <InfoTooltip text="Click any step while cooking to highlight your current place in the recipe." />
@@ -1300,7 +1300,7 @@ export function App() {
                 </span>
               </div>
 
-              <ol className="space-y-3">
+              <ol className="space-y-3.5">
                 {displayedSteps.map((step, idx) => {
                   const isFocused = activeStepIndex === idx;
                   return (
@@ -1308,13 +1308,13 @@ export function App() {
                       key={step.id}
                       onClick={() => setActiveStepIndex(isFocused ? null : idx)}
                       title="Click to highlight this step as your current cooking stage"
-                      className={`p-3.5 rounded-xl border transition-colors cursor-pointer print:p-1 print:border-none ${
+                      className={`p-4 rounded-xl border transition-colors cursor-pointer print:p-4 print:bg-slate-50/60 print:border-slate-300 ${
                         isFocused
                           ? 'bg-cyan-500/10 border-cyan-400 text-white'
-                          : 'bg-slate-950/60 border-slate-800/80 text-slate-200 hover:border-slate-700 print:bg-transparent print:text-slate-900'
+                          : 'bg-slate-950/60 border-slate-800/80 text-slate-200 hover:border-slate-700 print:text-slate-900'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3.5">
                         <span className="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 print:bg-slate-200 print:text-slate-900 print:border-slate-400 text-xs font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
                           {idx + 1}
                         </span>
@@ -1341,11 +1341,11 @@ export function App() {
 
               {/* Chef & Galley Notes */}
               {recipe.notes.length > 0 && (
-                <div className="mt-6 p-4 rounded-xl bg-slate-950/80 border border-slate-800 print:bg-slate-50 print:border-slate-300">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 print:text-slate-900 mb-2">
+                <div className="mt-6 p-5 rounded-xl bg-slate-950/80 border border-slate-800 print:bg-slate-50 print:border-slate-300">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 print:text-slate-900 mb-2.5">
                     Chef &amp; Galley Notes
                   </h4>
-                  <ul className="list-disc pl-5 space-y-1 text-xs text-slate-300 print:text-slate-800">
+                  <ul className="list-disc pl-5 space-y-1.5 text-xs leading-relaxed text-slate-300 print:text-slate-800">
                     {recipe.notes.map((note, i) => (
                       <li key={i}>{note}</li>
                     ))}
@@ -1356,7 +1356,7 @@ export function App() {
           </div>
 
           {/* Permanent Bottom Attribution Footer */}
-          <footer className="mt-8 pt-4 border-t border-slate-800 print:border-slate-300 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 print:text-slate-600">
+          <footer className="mt-8 pt-5 border-t border-slate-800 print:border-slate-300 flex flex-wrap items-center justify-between gap-3 text-[11px] leading-relaxed text-slate-400 print:text-slate-600">
             <div>
               Credit: <strong>{recipe.attribution.authorName}</strong> &bull;{' '}
               <strong>{recipe.attribution.siteName}</strong> (

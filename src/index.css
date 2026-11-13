@@ -2,7 +2,7 @@
 
 @media print {
   @page {
-    margin: 12mm;
+    margin: 14mm;
   }
 
   body {
@@ -23,9 +23,10 @@
   .print-card {
     background: #ffffff !important;
     color: #0f172a !important;
-    border: none !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 14px !important;
     box-shadow: none !important;
-    padding: 0 !important;
+    padding: 28px 32px !important;
     margin: 0 !important;
     max-width: 100% !important;
   }
