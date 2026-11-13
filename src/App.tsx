@@ -59,8 +59,15 @@ export function App() {
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const [wakeLockActive, setWakeLockActive] = useState<boolean>(false);
 
-  // Toast feedback
+  // Toast feedback & Post-Export Support Modal
   const [toast, setToast] = useState<string | null>(null);
+  const [exportModalAction, setExportModalAction] = useState<string | null>(null);
+  const [pulseSupportPill, setPulseSupportPill] = useState<boolean>(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPulseSupportPill(false), 4500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Saved recipes in browser localStorage
   const [savedRecipes, setSavedRecipes] = useState<SavedRecipeEntry[]>(() => {
@@ -298,6 +305,7 @@ export function App() {
   // Export & Save Handlers
   const handlePrintCard = () => {
     window.print();
+    setExportModalAction('Your printable Galley Card is ready!');
   };
 
   const handleDownloadStandaloneHtml = () => {
@@ -320,6 +328,7 @@ export function App() {
     a.click();
     URL.revokeObjectURL(url);
     showToast(`Downloaded standalone offline card: ${slug}-recipe-card.html`);
+    setExportModalAction(`Downloaded ${slug}-recipe-card.html!`);
   };
 
   const handleDownloadMarkdown = () => {
@@ -336,6 +345,7 @@ export function App() {
     a.click();
     URL.revokeObjectURL(url);
     showToast(`Downloaded Markdown with attribution frontmatter: ${slug}-recipe.md`);
+    setExportModalAction(`Downloaded ${slug}-recipe.md!`);
   };
 
   const handleCopyMarkdown = async () => {
@@ -376,9 +386,9 @@ export function App() {
                 Ten Forward
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.1"
+                  title="Ten Forward Application Version 1.2"
                 >
-                  v1.1
+                  v1.2
                 </span>
                 <span className="text-xs font-normal text-slate-400 hidden sm:inline">
                   — Recipe Extractor &amp; Printable Galley Card
@@ -414,12 +424,95 @@ export function App() {
         </div>
       </header>
 
-      {/* Floating Toast Notification */}
+      {/* Floating Guidance / Status Toast Banner */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 border border-cyan-500/50 text-cyan-200 px-4 py-3 rounded-xl shadow-2xl text-sm max-w-md no-print">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur border border-cyan-500/40 text-cyan-200 px-5 py-2.5 rounded-full shadow-2xl text-sm font-medium max-w-md text-center no-print">
           {toast}
         </div>
       )}
+
+      {/* Post-Export Confirmation & Buy Me a Coffee Support Modal */}
+      {exportModalAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm transition-opacity no-print">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-8 shadow-2xl flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5">
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+
+            <h3 className="text-xl font-bold text-white mb-2">{exportModalAction}</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Your clean Galley Card preserves full attribution and QR source links for{' '}
+              <strong className="text-slate-200">{recipe.attribution.authorName}</strong> with zero
+              tracking or server storage.
+            </p>
+
+            <div className="flex flex-col gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setExportModalAction(null);
+                  setInputTab('url');
+                }}
+                title="Extract another recipe URL"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 px-6 rounded-xl shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Extract Another Recipe
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportModalAction(null)}
+                title="Return to the current recipe card"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-2.5 px-6 rounded-xl border border-slate-700 transition-colors cursor-pointer"
+              >
+                Keep Viewing This Recipe
+              </button>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-slate-800/80 w-full flex flex-col items-center">
+              <p className="text-xs text-slate-400 mb-3">
+                Saved you from scrolling past 15 pop-up ads?
+              </p>
+              <a
+                href="https://buymeacoffee.com/curiouslyso"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Support independent privacy-first browser utilities"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-sm font-semibold border border-amber-500/40 transition-all hover:scale-105 shadow-md"
+              >
+                <span className="text-lg">☕</span>
+                <span>Buy Me a Coffee</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Developer Support Pill (Standard across the-lal.net fleet) */}
+      <a
+        id="btn-support-pill"
+        href="https://buymeacoffee.com/curiouslyso"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Support independent privacy-first browser tools on Buy Me a Coffee"
+        className={`fixed bottom-5 right-5 z-30 inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-amber-300 font-medium text-sm border border-amber-500/40 hover:border-amber-400 shadow-xl backdrop-blur transition-all duration-300 hover:scale-105 no-print ${
+          pulseSupportPill ? 'animate-pulse ring-2 ring-amber-400/50 border-amber-400' : ''
+        }`}
+      >
+        <span className="text-lg leading-none">☕</span>
+        <span>Support the dev</span>
+      </a>
 
       {/* Main Content Container */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 print:px-0 print:py-0 flex-1 space-y-6">
@@ -1370,9 +1463,20 @@ export function App() {
               </a>
               )
             </div>
-            <div>
-              Formatted with Ten Forward v1.1 (ten-forward.the-lal.net) &bull; Extracted{' '}
-              {recipe.attribution.extractedAt}
+            <div className="flex items-center gap-3">
+              <span>
+                Formatted with Ten Forward v1.2 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                {recipe.attribution.extractedAt}
+              </span>
+              <a
+                href="https://buymeacoffee.com/curiouslyso"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Support independent privacy-first browser utilities on Buy Me a Coffee"
+                className="text-amber-300 hover:text-amber-200 font-medium transition-colors no-print"
+              >
+                ☕ Support the dev
+              </a>
             </div>
           </footer>
         </article>

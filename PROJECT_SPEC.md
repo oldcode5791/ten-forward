@@ -127,6 +127,7 @@ export interface AttributionRecord {
 | **Cook Mode (Galley Display)** | Checkable ingredients, clickable active step highlight, and Screen Wake Lock (`navigator.wakeLock`) | Yes |
 | **Print Layout Configurator** | Choose 1-Page Compact vs. Standard layout, font size, QR code toggle, and photo toggle | Yes |
 | **Save & Export Suite** | Print / PDF, Standalone Offline `.html`, Obsidian/Notion `.md`, `.json`, and Local Browser Recipe Box (`localStorage`) | Yes |
+| **Developer Support (`buymeacoffee`)** | Floating `☕ Support the dev` pill (`bottom-5 right-5`, 4.5s load pulse) + Post-Export `☕ Buy Me a Coffee` confirmation modal (`https://buymeacoffee.com/curiouslyso`) | Yes |
 
 ---
 
