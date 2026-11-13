@@ -25,8 +25,20 @@ import type {
 const STORAGE_KEY = 'the_lal_ten_forward_saved_v1';
 
 export function App() {
-  // Active recipe state initialized to Guinan's Ten Forward preset
-  const [recipe, setRecipe] = useState<RecipeData>(STARFLEET_SAMPLE_RECIPES[0]);
+  // Saved recipes in browser localStorage (loaded first so initial recipe defaults to latest saved)
+  const [savedRecipes, setSavedRecipes] = useState<SavedRecipeEntry[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Active recipe state initialized to the most recently saved Galley Box recipe (or Guinan's preset if empty)
+  const [recipe, setRecipe] = useState<RecipeData>(
+    () => savedRecipes[0]?.recipe ?? STARFLEET_SAMPLE_RECIPES[0]
+  );
 
   // Input mode ('url' | 'paste' | 'presets' | 'saved')
   const [inputTab, setInputTab] = useState<'url' | 'paste' | 'presets' | 'saved'>('url');
@@ -46,7 +58,7 @@ export function App() {
 
   // Interactive Scaling, Unit Conversion & Print Controls
   const [targetServings, setTargetServings] = useState<number>(
-    STARFLEET_SAMPLE_RECIPES[0].baseServings
+    () => (savedRecipes[0]?.recipe ?? STARFLEET_SAMPLE_RECIPES[0]).baseServings || 4
   );
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('original');
   const [photoMode, setPhotoMode] = useState<PrintPhotoMode>('hero-only');
@@ -68,16 +80,6 @@ export function App() {
     const timer = setTimeout(() => setPulseSupportPill(false), 4500);
     return () => clearTimeout(timer);
   }, []);
-
-  // Saved recipes in browser localStorage
-  const [savedRecipes, setSavedRecipes] = useState<SavedRecipeEntry[]>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
 
   useEffect(() => {
     try {
@@ -361,12 +363,19 @@ export function App() {
       recipe: { ...recipe },
     };
     setSavedRecipes((prev) => [entry, ...prev]);
+    loadRecipe(entry.recipe);
     setInputTab('saved');
-    showToast(`Saved "${recipe.title}" into your Galley Box (in-browser saved recipes)!`);
+    showToast(`Saved "${recipe.title}" into your Galley Box (and set as active recipe below)!`);
   };
 
   const handleDeleteSaved = (id: string) => {
-    setSavedRecipes((prev) => prev.filter((item) => item.id !== id));
+    setSavedRecipes((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      if (next.length > 0 && recipe.title === prev.find((p) => p.id === id)?.recipe.title) {
+        loadRecipe(next[0].recipe);
+      }
+      return next;
+    });
     showToast('Removed recipe from your Galley Box.');
   };
 
@@ -421,9 +430,9 @@ export function App() {
                 Ten Forward
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.3"
+                  title="Ten Forward Application Version 1.4"
                 >
-                  v1.3
+                  v1.4
                 </span>
                 <span className="text-xs font-normal text-slate-400 hidden sm:inline">
                   — Recipe Extractor &amp; Printable Galley Card
@@ -446,8 +455,12 @@ export function App() {
             <div className="inline-flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setInputTab('saved')}
-                title="Galley Box is your personal Recipe Box saved privately inside this browser. Click to view your saved recipes."
+                onClick={() => setInputTab((prev) => (prev === 'saved' ? 'url' : 'saved'))}
+                title={
+                  inputTab === 'saved'
+                    ? 'Close Galley Box and return to URL extractor'
+                    : 'Galley Box is your personal Recipe Box saved privately inside this browser. Click to view your saved recipes.'
+                }
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer ${
                   inputTab === 'saved'
                     ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
@@ -467,14 +480,14 @@ export function App() {
                     d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
                   />
                 </svg>
-                <span>Galley Box</span>
+                <span>{inputTab === 'saved' ? 'Close Galley Box ✕' : 'Galley Box'}</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-950/90 text-cyan-300 border border-slate-700">
                   {savedRecipes.length} saved
                 </span>
               </button>
               <InfoTooltip
                 position="bottom"
-                text="Galley Box is your personal Recipe Box stored privately inside your browser (localStorage). Save your favorite extracted recipes here to build your own ad-free cookbook—100% offline with no account required."
+                text="Galley Box is your personal Recipe Box stored privately inside your browser (localStorage). Click to open or close your saved recipe collection."
               />
             </div>
             <a
@@ -635,8 +648,8 @@ export function App() {
               <div className="inline-flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setInputTab('saved')}
-                  title="Galley Box: Open your personal collection of recipes saved inside this browser"
+                  onClick={() => setInputTab((prev) => (prev === 'saved' ? 'url' : 'saved'))}
+                  title="Galley Box: Click to open or close your personal collection of recipes saved inside this browser"
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                     inputTab === 'saved'
                       ? 'bg-cyan-500 text-slate-950'
@@ -876,6 +889,14 @@ export function App() {
                       className="hidden"
                     />
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => setInputTab('url')}
+                    title="Close the Galley Box drawer and return to the URL extractor bar"
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white text-xs font-semibold cursor-pointer"
+                  >
+                    ✕ Close Galley Box
+                  </button>
                 </div>
               </div>
 
@@ -892,54 +913,69 @@ export function App() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {savedRecipes.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex flex-col justify-between gap-3 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        {entry.recipe.heroImage && (
-                          <img
-                            src={entry.recipe.heroImage}
-                            alt={entry.recipe.title}
-                            className="w-16 h-16 rounded-lg object-cover border border-slate-800 shrink-0"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[10px] font-mono text-cyan-400 truncate">
-                            By {entry.recipe.attribution.authorName} &bull; {entry.recipe.attribution.siteName}
-                          </div>
-                          <div className="font-bold text-sm text-white mt-0.5 line-clamp-2">
-                            {entry.recipe.title}
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-1">
-                            Saved {entry.savedAt} &bull; {entry.recipe.ingredients.length} ingredients
+                  {savedRecipes.map((entry) => {
+                    const isDisplayedBelow = recipe.title === entry.recipe.title;
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`p-3.5 rounded-xl bg-slate-950 border flex flex-col justify-between gap-3 transition-colors ${
+                          isDisplayedBelow
+                            ? 'border-cyan-400 ring-1 ring-cyan-400/30'
+                            : 'border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {entry.recipe.heroImage && (
+                            <img
+                              src={entry.recipe.heroImage}
+                              alt={entry.recipe.title}
+                              className="w-16 h-16 rounded-lg object-cover border border-slate-800 shrink-0"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[10px] font-mono text-cyan-400 truncate">
+                                By {entry.recipe.attribution.authorName} &bull; {entry.recipe.attribution.siteName}
+                              </span>
+                              {isDisplayedBelow && (
+                                <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                                  Active Below
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-bold text-sm text-white mt-0.5 line-clamp-2">
+                              {entry.recipe.title}
+                            </div>
+                            <div className="text-[11px] text-slate-400 mt-1">
+                              Saved {entry.savedAt} &bull; {entry.recipe.ingredients.length} ingredients
+                            </div>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              loadRecipe(entry.recipe);
+                              setInputTab('url');
+                              showToast(`Loaded "${entry.recipe.title}" below and closed Galley Box.`);
+                            }}
+                            title="Display this saved recipe card below and close the Galley Box drawer"
+                            className="flex-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-semibold cursor-pointer"
+                          >
+                            {isDisplayedBelow ? 'Viewing Below (Close Box)' : 'Open Recipe Card'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSaved(entry.id)}
+                            title="Remove this recipe from your browser's Galley Box"
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 text-xs cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            loadRecipe(entry.recipe);
-                            showToast(`Opened "${entry.recipe.title}" from your Galley Box.`);
-                          }}
-                          title="Load this saved recipe card into the main view below"
-                          className="flex-1 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-semibold cursor-pointer"
-                        >
-                          Open Recipe Card
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSaved(entry.id)}
-                          title="Remove this recipe from your browser's Galley Box"
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 text-xs cursor-pointer"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1174,7 +1210,7 @@ export function App() {
           {/* Candidate Dish Photo Picker Strip (when images are available or user wants to upload one) */}
           {photoMode !== 'no-photos' && (
             <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 overflow-x-auto py-1">
+              <div className="flex flex-wrap items-center gap-2 py-1">
                 <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1 shrink-0">
                   Verified Dish Photos ({recipe.candidateImages.length}):
                   <InfoTooltip text="Click any scraped candidate photo to set it as the recipe cover image, or upload your own photo from your device." />
@@ -1645,7 +1681,7 @@ export function App() {
             </div>
             <div className="flex items-center gap-3">
               <span>
-                Formatted with Ten Forward v1.3 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                Formatted with Ten Forward v1.4 (ten-forward.the-lal.net) &bull; Extracted{' '}
                 {recipe.attribution.extractedAt}
               </span>
               <a

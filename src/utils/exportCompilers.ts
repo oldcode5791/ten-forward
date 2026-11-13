@@ -341,7 +341,7 @@ export function compileStandaloneRecipeHtml(
 
     <footer class="footer">
       <div>Attributed to <strong>${escapeHtml(recipe.attribution.authorName)}</strong> (${escapeHtml(recipe.attribution.siteName)}) — <a href="${escapeHtml(recipe.attribution.sourceUrl)}">${escapeHtml(recipe.attribution.sourceUrl)}</a></div>
-      <div>Formatted with Ten Forward v1.3 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
+      <div>Formatted with Ten Forward v1.4 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
     </footer>
   </article>
 </body>
