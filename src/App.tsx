@@ -376,9 +376,9 @@ export function App() {
                 Ten Forward
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.0"
+                  title="Ten Forward Application Version 1.1"
                 >
-                  v1.0
+                  v1.1
                 </span>
                 <span className="text-xs font-normal text-slate-400 hidden sm:inline">
                   — Recipe Extractor &amp; Printable Galley Card
@@ -1371,7 +1371,7 @@ export function App() {
               )
             </div>
             <div>
-              Formatted with Ten Forward v1.0 (ten-forward.the-lal.net) &bull; Extracted{' '}
+              Formatted with Ten Forward v1.1 (ten-forward.the-lal.net) &bull; Extracted{' '}
               {recipe.attribution.extractedAt}
             </div>
           </footer>
