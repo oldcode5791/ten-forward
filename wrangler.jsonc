@@ -3,9 +3,16 @@
   "name": "ten-forward",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-11-13",
+  "routes": [
+    {
+      "pattern": "ten-forward.the-lal.net",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
   }
 }
