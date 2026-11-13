@@ -12,9 +12,10 @@ function escapeHtml(raw: string): string {
 }
 
 /**
- * Compiles a Markdown (.md) recipe file with YAML frontmatter and a permanent Creator Attribution header.
+ * Compiles clean, everyday-readable plain text (with Creator Attribution & source link)
+ * for pasting into emails, text messages, or notes apps.
  */
-export function compileRecipeMarkdown(
+export function compilePlainRecipeText(
   recipe: RecipeData,
   targetServings: number,
   unitSystem: UnitSystem
@@ -29,26 +30,9 @@ export function compileRecipeMarkdown(
   }));
 
   const lines: string[] = [
-    '---',
-    `title: "${recipe.title.replace(/"/g, '\\"')}"`,
-    `author: "${recipe.attribution.authorName.replace(/"/g, '\\"')}"`,
-    `site_name: "${recipe.attribution.siteName.replace(/"/g, '\\"')}"`,
-    `source_url: "${recipe.attribution.sourceUrl}"`,
-    `published_date: "${recipe.attribution.publishedDate || ''}"`,
-    `saved_date: "${recipe.attribution.extractedAt}"`,
-    `servings: ${targetServings}`,
-    `prep_time: "${recipe.prepTime}"`,
-    `cook_time: "${recipe.cookTime}"`,
-    `total_time: "${recipe.totalTime}"`,
-    `category: "${recipe.category}"`,
-    `cuisine: "${recipe.cuisine}"`,
-    '---',
-    '',
-    `# ${recipe.title}`,
-    '',
-    `> **Original Recipe Attribution:** By **${recipe.attribution.authorName}** on **${recipe.attribution.siteName}**`,
-    `> **Original Source URL:** ${recipe.attribution.sourceUrl}`,
-    `> *Saved via Ten Forward (ten-forward.the-lal.net) on ${recipe.attribution.extractedAt}*`,
+    recipe.title.toUpperCase(),
+    `Recipe by ${recipe.attribution.authorName} • Published on ${recipe.attribution.siteName}`,
+    `Original Source: ${recipe.attribution.sourceUrl}`,
     '',
   ];
 
@@ -56,37 +40,30 @@ export function compileRecipeMarkdown(
     lines.push(recipe.description, '');
   }
 
-  const metaParts: string[] = [`**Servings:** ${targetServings}`];
-  if (recipe.prepTime) metaParts.push(`**Prep:** ${recipe.prepTime}`);
-  if (recipe.cookTime) metaParts.push(`**Cook:** ${recipe.cookTime}`);
-  if (recipe.totalTime) metaParts.push(`**Total:** ${recipe.totalTime}`);
-  lines.push(metaParts.join(' • '), '');
+  const metaParts: string[] = [`Servings: ${targetServings}`];
+  if (recipe.prepTime) metaParts.push(`Prep: ${recipe.prepTime}`);
+  if (recipe.cookTime) metaParts.push(`Cook: ${recipe.cookTime}`);
+  if (recipe.totalTime) metaParts.push(`Total: ${recipe.totalTime}`);
+  lines.push(metaParts.join(' | '), '');
 
-  lines.push('## Ingredients', '');
+  lines.push('INGREDIENTS:');
   for (const ing of scaledIngredients) {
-    lines.push(`- [ ] ${ing}`);
+    lines.push(`• ${ing}`);
   }
   lines.push('');
 
-  lines.push('## Instructions', '');
+  lines.push('INSTRUCTIONS:');
   scaledSteps.forEach((step, idx) => {
-    const prefix = step.section ? `*(${step.section})* ` : '';
+    const prefix = step.section ? `[${step.section}] ` : '';
     lines.push(`${idx + 1}. ${prefix}${step.text}`);
   });
-  lines.push('');
 
   if (recipe.notes.length > 0) {
-    lines.push("## Chef's & Galley Notes", '');
+    lines.push('', 'NOTES:');
     for (const note of recipe.notes) {
-      lines.push(`- ${note}`);
+      lines.push(`• ${note}`);
     }
-    lines.push('');
   }
-
-  lines.push(
-    '---',
-    `*Source credit: [${recipe.attribution.authorName} — ${recipe.attribution.siteName}](${recipe.attribution.sourceUrl})*`
-  );
 
   return lines.join('\n');
 }
@@ -341,7 +318,7 @@ export function compileStandaloneRecipeHtml(
 
     <footer class="footer">
       <div>Attributed to <strong>${escapeHtml(recipe.attribution.authorName)}</strong> (${escapeHtml(recipe.attribution.siteName)}) — <a href="${escapeHtml(recipe.attribution.sourceUrl)}">${escapeHtml(recipe.attribution.sourceUrl)}</a></div>
-      <div>Formatted with Ten Forward v1.4 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
+      <div>Formatted with Ten Forward v1.5 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
     </footer>
   </article>
 </body>

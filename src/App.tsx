@@ -3,7 +3,7 @@ import { InfoTooltip } from './components/InfoTooltip';
 import { QrCodeBox } from './components/QrCodeBox';
 import { STARFLEET_SAMPLE_RECIPES } from './data/starfleetRecipes';
 import {
-  compileRecipeMarkdown,
+  compilePlainRecipeText,
   compileStandaloneRecipeHtml,
 } from './utils/exportCompilers';
 import {
@@ -333,27 +333,10 @@ export function App() {
     setExportModalAction(`Downloaded ${slug}-recipe-card.html!`);
   };
 
-  const handleDownloadMarkdown = () => {
-    const md = compileRecipeMarkdown(recipe, targetServings, unitSystem);
-    const slug = (recipe.title || 'recipe')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${slug || 'galley'}-recipe.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(`Downloaded Markdown with attribution frontmatter: ${slug}-recipe.md`);
-    setExportModalAction(`Downloaded ${slug}-recipe.md!`);
-  };
-
-  const handleCopyMarkdown = async () => {
-    const md = compileRecipeMarkdown(recipe, targetServings, unitSystem);
-    await navigator.clipboard.writeText(md);
-    showToast('Copied Markdown recipe (with Creator Attribution header) to clipboard!');
+  const handleCopyRecipeText = async () => {
+    const plain = compilePlainRecipeText(recipe, targetServings, unitSystem);
+    await navigator.clipboard.writeText(plain);
+    showToast('Copied recipe text (with creator credit & source link) to clipboard!');
   };
 
   const handleSaveToGalleyBox = () => {
@@ -430,9 +413,9 @@ export function App() {
                 Ten Forward
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.4"
+                  title="Ten Forward Application Version 1.5"
                 >
-                  v1.4
+                  v1.5
                 </span>
                 <span className="text-xs font-normal text-slate-400 hidden sm:inline">
                   — Recipe Extractor &amp; Printable Galley Card
@@ -446,7 +429,7 @@ export function App() {
                 </span>
               </h1>
               <p className="text-xs text-slate-400">
-                Intelligent JSON-LD &amp; Dish Photo Scraper &bull; Portion Scaler &bull; Offline HTML, Markdown &amp; Print PDF
+                Intelligent JSON-LD &amp; Dish Photo Scraper &bull; Portion Scaler &bull; Galley Box, Offline HTML &amp; Print PDF
               </p>
             </div>
           </div>
@@ -1161,24 +1144,13 @@ export function App() {
               <div className="inline-flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={handleCopyMarkdown}
-                  title="Copy formatted Markdown (with YAML attribution frontmatter) to clipboard"
+                  onClick={handleCopyRecipeText}
+                  title="Copy clean, readable recipe text to paste into an email, message, or notes app"
                   className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
                 >
-                  📋 Copy .MD
+                  📋 Copy Text
                 </button>
-                <InfoTooltip text="Copies the recipe in Markdown format (including creator attribution and scaled ingredients) so you can paste it into Notion, Obsidian, or Apple Notes." />
-              </div>
-
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleDownloadMarkdown}
-                  title="Download as a Markdown (.md) file for Obsidian, Notion, or local folders"
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
-                >
-                  ⬇️ Download .MD
-                </button>
+                <InfoTooltip text="Copies the clean recipe text (including scaled ingredients, steps, and original source link) so you can paste it into an email, text message, or notes app." />
               </div>
 
               <div className="inline-flex items-center gap-1">
@@ -1188,7 +1160,7 @@ export function App() {
                   title="Download a self-contained, printable .html recipe card with embedded QR code and attribution"
                   className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer"
                 >
-                  💾 Save Offline .HTML
+                  💾 Save Offline Card
                 </button>
                 <InfoTooltip text="Downloads a standalone .html file containing the styled recipe card, attribution link, and QR code that opens in any browser even without internet." />
               </div>
@@ -1681,7 +1653,7 @@ export function App() {
             </div>
             <div className="flex items-center gap-3">
               <span>
-                Formatted with Ten Forward v1.4 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                Formatted with Ten Forward v1.5 (ten-forward.the-lal.net) &bull; Extracted{' '}
                 {recipe.attribution.extractedAt}
               </span>
               <a
