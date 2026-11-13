@@ -65,6 +65,7 @@ export function App() {
   const [showQrCode, setShowQrCode] = useState<boolean>(true);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isEmbeddingPhoto, setIsEmbeddingPhoto] = useState<boolean>(false);
+  const [showMobileTools, setShowMobileTools] = useState<boolean>(false);
 
   // Cook Mode state (checked ingredients, active step highlight, screen wake lock)
   const [checkedIngredients, setCheckedIngredients] = useState<Record<number, boolean>>({});
@@ -399,28 +400,25 @@ export function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Sticky Navigation Bar (Hidden when printing) */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30 no-print">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 no-print">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div
-              className="w-9 h-9 rounded-lg bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-mono font-bold text-sm"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-mono font-bold text-xs sm:text-sm shrink-0"
               title="Ten Forward — Deck 10, Forward Section 1"
             >
               10F
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-white flex flex-wrap items-center gap-2">
-                Ten Forward
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold tracking-tight text-white flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span>Ten Forward</span>
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.5"
+                  title="Ten Forward Application Version 1.6"
                 >
-                  v1.5
+                  v1.6
                 </span>
-                <span className="text-xs font-normal text-slate-400 hidden sm:inline">
-                  — Recipe Extractor &amp; Printable Galley Card
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Creator Attribution + Zero Tracking
                   <InfoTooltip
                     position="bottom"
@@ -428,14 +426,18 @@ export function App() {
                   />
                 </span>
               </h1>
-              <p className="text-xs text-slate-400">
-                Intelligent JSON-LD &amp; Dish Photo Scraper &bull; Portion Scaler &bull; Galley Box, Offline HTML &amp; Print PDF
+              <p className="text-[11px] sm:text-xs text-cyan-300/90 sm:text-slate-300 font-medium truncate">
+                Recipe Extractor &amp; Printable Galley Card
+                <span className="hidden md:inline text-slate-400 font-normal">
+                  {' '}
+                  &bull; Dish Photo Scraper, Portion Scaler &amp; Offline Print/PDF
+                </span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
-            <div className="inline-flex items-center gap-1.5">
+          <div className="flex items-center gap-2 sm:gap-4 text-xs shrink-0">
+            <div className="inline-flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setInputTab((prev) => (prev === 'saved' ? 'url' : 'saved'))}
@@ -444,7 +446,7 @@ export function App() {
                     ? 'Close Galley Box and return to URL extractor'
                     : 'Galley Box is your personal Recipe Box saved privately inside this browser. Click to view your saved recipes.'
                 }
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer ${
                   inputTab === 'saved'
                     ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
                     : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-cyan-300'
@@ -463,20 +465,22 @@ export function App() {
                     d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
                   />
                 </svg>
-                <span>{inputTab === 'saved' ? 'Close Galley Box ✕' : 'Galley Box'}</span>
+                <span>{inputTab === 'saved' ? 'Close Box ✕' : 'Galley Box'}</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-slate-950/90 text-cyan-300 border border-slate-700">
-                  {savedRecipes.length} saved
+                  {savedRecipes.length}
                 </span>
               </button>
-              <InfoTooltip
-                position="bottom"
-                text="Galley Box is your personal Recipe Box stored privately inside your browser (localStorage). Click to open or close your saved recipe collection."
-              />
+              <span className="hidden sm:inline-flex">
+                <InfoTooltip
+                  position="bottom"
+                  text="Galley Box is your personal Recipe Box stored privately inside your browser (localStorage). Click to open or close your saved recipe collection."
+                />
+              </span>
             </div>
             <a
               href="https://apps.the-lal.net"
               title="Return to the full the-lal.net browser utility directory"
-              className="text-slate-400 hover:text-cyan-400 transition-colors"
+              className="text-slate-400 hover:text-cyan-400 transition-colors hidden sm:inline"
             >
               &larr; App Showcase
             </a>
@@ -566,34 +570,38 @@ export function App() {
         target="_blank"
         rel="noopener noreferrer"
         title="Support independent privacy-first browser tools on Buy Me a Coffee"
-        className={`fixed bottom-5 right-5 z-30 inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-amber-300 font-medium text-sm border border-amber-500/40 hover:border-amber-400 shadow-xl backdrop-blur transition-all duration-300 hover:scale-105 no-print ${
+        className={`fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-30 inline-flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-amber-300 font-medium text-xs sm:text-sm border border-amber-500/40 hover:border-amber-400 shadow-xl backdrop-blur transition-all duration-300 hover:scale-105 no-print ${
           pulseSupportPill ? 'animate-pulse ring-2 ring-amber-400/50 border-amber-400' : ''
         }`}
       >
-        <span className="text-lg leading-none">☕</span>
+        <span className="text-base sm:text-lg leading-none">☕</span>
         <span>Support the dev</span>
       </a>
 
       {/* Main Content Container */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 print:px-0 print:py-0 flex-1 space-y-6">
+      <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 print:px-0 print:py-0 flex-1 space-y-4 sm:space-y-6">
         {/* 1. Extraction & Source Input Deck (Hidden in Print) */}
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl no-print">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3.5 mb-4">
-            <div className="flex flex-wrap items-center gap-2.5">
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-5 shadow-xl no-print">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800 pb-3 mb-3.5">
+            {/* Responsive 2x2 Grid on Phone, Inline Pills on Tablet/Desktop */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
               <div className="inline-flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setInputTab('url')}
                   title="Extract a recipe, dish photos, and creator attribution from any public URL"
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-center ${
                     inputTab === 'url'
                       ? 'bg-cyan-500 text-slate-950'
                       : 'bg-slate-800 text-slate-300 hover:text-white'
                   }`}
                 >
-                  🔗 1. Scrape Recipe URL
+                  🔗 <span className="sm:hidden">Extract URL</span>
+                  <span className="hidden sm:inline">1. Scrape Recipe URL</span>
                 </button>
-                <InfoTooltip text="Paste any link from a recipe blog or cooking site to strip out ads and life stories while keeping dish photos and creator credit." />
+                <span className="hidden sm:inline-flex">
+                  <InfoTooltip text="Paste any link from a recipe blog or cooking site to strip out ads and life stories while keeping dish photos and creator credit." />
+                </span>
               </div>
 
               <div className="inline-flex items-center gap-1">
@@ -601,15 +609,18 @@ export function App() {
                   type="button"
                   onClick={() => setInputTab('paste')}
                   title="Paste copied recipe text or raw HTML directly (works 100% offline with zero network calls)"
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-center ${
                     inputTab === 'paste'
                       ? 'bg-cyan-500 text-slate-950'
                       : 'bg-slate-800 text-slate-300 hover:text-white'
                   }`}
                 >
-                  📋 2. Paste Text / HTML (Offline)
+                  📋 <span className="sm:hidden">Paste Text</span>
+                  <span className="hidden sm:inline">2. Paste Text / HTML</span>
                 </button>
-                <InfoTooltip text="Copy and paste text from an email, document, or paywalled webpage to format it into a clean Galley Card 100% offline." />
+                <span className="hidden sm:inline-flex">
+                  <InfoTooltip text="Copy and paste text from an email, document, or paywalled webpage to format it into a clean Galley Card 100% offline." />
+                </span>
               </div>
 
               <div className="inline-flex items-center gap-1">
@@ -617,15 +628,18 @@ export function App() {
                   type="button"
                   onClick={() => setInputTab('presets')}
                   title="Load Star Trek: The Next Generation sample recipes from Ten Forward"
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-center ${
                     inputTab === 'presets'
                       ? 'bg-cyan-500 text-slate-950'
                       : 'bg-slate-800 text-slate-300 hover:text-white'
                   }`}
                 >
-                  🖖 3. Starfleet Sample Recipes
+                  🖖 <span className="sm:hidden">Samples</span>
+                  <span className="hidden sm:inline">3. Starfleet Samples</span>
                 </button>
-                <InfoTooltip text="Try Ten Forward immediately with sample recipes from Guinan, Captain Picard, and Commander Riker." />
+                <span className="hidden sm:inline-flex">
+                  <InfoTooltip text="Try Ten Forward immediately with sample recipes from Guinan, Captain Picard, and Commander Riker." />
+                </span>
               </div>
 
               <div className="inline-flex items-center gap-1">
@@ -633,19 +647,24 @@ export function App() {
                   type="button"
                   onClick={() => setInputTab((prev) => (prev === 'saved' ? 'url' : 'saved'))}
                   title="Galley Box: Click to open or close your personal collection of recipes saved inside this browser"
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`w-full sm:w-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-center ${
                     inputTab === 'saved'
                       ? 'bg-cyan-500 text-slate-950'
                       : 'bg-slate-800 text-slate-300 hover:text-white'
                   }`}
                 >
-                  🗃️ 4. Galley Box • Saved Recipes ({savedRecipes.length})
+                  🗃️ <span className="sm:hidden">Galley Box ({savedRecipes.length})</span>
+                  <span className="hidden sm:inline">
+                    4. Galley Box • Saved ({savedRecipes.length})
+                  </span>
                 </button>
-                <InfoTooltip text="Think of the Galley Box as the recipe tin on your kitchen counter. Any recipe you save here stays in your browser's local storage so you can reopen or print it anytime." />
+                <span className="hidden sm:inline-flex">
+                  <InfoTooltip text="Think of the Galley Box as the recipe tin on your kitchen counter. Any recipe you save here stays in your browser's local storage so you can reopen or print it anytime." />
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-400">
               <span>Anti-Garbage Image Filter Active</span>
               <InfoTooltip text="Ten Forward prioritizes schema.org/Recipe dish & step photos and automatically rejects ad banners, author avatars, social icons, SVGs, GIFs, and tracking pixels." />
             </div>
@@ -965,11 +984,12 @@ export function App() {
           )}
         </section>
 
-        {/* 2. Interactive Galley Control Toolbar (Portion Scaling, Units, Photo Picker, Print/Export) */}
-        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4 no-print">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* 2. Interactive Galley Control Toolbar (Compact on Phone, Full on Tablet/Desktop) */}
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-xl space-y-3 sm:space-y-4 no-print">
+          {/* Primary Row: Portions, Units, and Essential Actions on Mobile */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-4">
             {/* Portion Multiplier & Servings */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 Portions:
                 <InfoTooltip text="Scale ingredient quantities automatically. Fractions (like 1/2, 1/3, 3/4) are recalculated into clean kitchen measurements." />
@@ -984,7 +1004,7 @@ export function App() {
                   &minus;
                 </button>
                 <span
-                  className="px-2.5 text-xs font-mono font-bold text-cyan-300"
+                  className="px-2 sm:px-2.5 text-xs font-mono font-bold text-cyan-300"
                   title="Current target serving count"
                 >
                   {targetServings} srv
@@ -999,7 +1019,7 @@ export function App() {
                 </button>
               </div>
 
-              <div className="inline-flex items-center gap-1">
+              <div className="hidden sm:inline-flex items-center gap-1">
                 {[0.5, 1, 2, 3].map((mult) => {
                   const target = Math.max(1, Math.round(recipe.baseServings * mult));
                   const isCurrent = targetServings === target;
@@ -1023,38 +1043,39 @@ export function App() {
             </div>
 
             {/* Unit System Converter */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 hidden sm:flex items-center gap-1">
                 Units:
                 <InfoTooltip text="Convert weights, volumes, and oven temperatures (°F <-> °C) between Original, Metric (grams/ml/°C), and US Imperial (oz/cups/°F)." />
               </span>
               <div className="inline-flex rounded-xl bg-slate-950 border border-slate-800 p-1 gap-1">
                 {(
                   [
-                    { id: 'original', label: 'Original' },
-                    { id: 'metric', label: 'Metric (g/ml/°C)' },
-                    { id: 'imperial', label: 'Imperial (oz/°F)' },
+                    { id: 'original', shortLabel: 'Orig', fullLabel: 'Original' },
+                    { id: 'metric', shortLabel: 'Metric', fullLabel: 'Metric (g/ml/°C)' },
+                    { id: 'imperial', shortLabel: 'Imperial', fullLabel: 'Imperial (oz/°F)' },
                   ] as const
                 ).map((u) => (
                   <button
                     key={u.id}
                     type="button"
                     onClick={() => setUnitSystem(u.id)}
-                    title={`Display measurements in ${u.label}`}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    title={`Display measurements in ${u.fullLabel}`}
+                    className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                       unitSystem === u.id
                         ? 'bg-cyan-500 text-slate-950'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {u.label}
+                    <span className="sm:hidden">{u.shortLabel}</span>
+                    <span className="hidden sm:inline">{u.fullLabel}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Photo & QR Print Options */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Photo & QR Print Options (Visible on md+ desktop, or inside More Tools on phone) */}
+            <div className="hidden md:flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 Photos:
                 <InfoTooltip text="Choose whether to include the main dish photo, dish + step photos, or no photos (ink-saver mode) on the card and printout." />
@@ -1086,145 +1107,216 @@ export function App() {
             </div>
           </div>
 
-          {/* Action Bar: Print, Export, Edit, Wake Lock */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
-            <div className="flex flex-wrap items-center gap-2">
+          {/* Mobile Quick Action Bar (Phone screens only < md) */}
+          <div className="flex md:hidden items-center justify-between gap-2 pt-2.5 border-t border-slate-800">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setIsEditing((v) => !v)}
-                title="Edit recipe title, creator attribution, ingredients, steps, or notes before printing"
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
-                  isEditing
-                    ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-200 hover:border-slate-600'
-                }`}
+                onClick={handleSaveToGalleyBox}
+                title="Save this recipe inside your browser's Galley Box"
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
               >
-                {isEditing ? 'Done Editing' : 'Edit Recipe & Attribution'}
+                🗃️ Save
               </button>
-
               <button
                 type="button"
-                onClick={() => void handleToggleWakeLock()}
-                title="Keep your screen from dimming while you follow the recipe in the kitchen"
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
-                  wakeLockActive
-                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
-                }`}
+                onClick={handleCopyRecipeText}
+                title="Copy clean recipe text to clipboard"
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-xs font-semibold cursor-pointer"
               >
-                {wakeLockActive ? 'Cook Mode: Screen Awake' : 'Keep Screen Awake'}
+                📋 Copy
               </button>
-
-              {recipe.heroImage && !recipe.heroImage.startsWith('data:image/') && (
-                <button
-                  type="button"
-                  disabled={isEmbeddingPhoto}
-                  onClick={() => void handleEmbedHeroPhotoOffline()}
-                  title="Download and compress the dish photo into a self-contained Base64 image so exported HTML files work 100% offline"
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 cursor-pointer"
-                >
-                  {isEmbeddingPhoto ? 'Embedding Photo...' : 'Inline Photo for Offline Save'}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handlePrintCard}
+                title="Print or Save as PDF"
+                className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer"
+              >
+                🖨️ Print / PDF
+              </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleSaveToGalleyBox}
-                  title="Bookmark this recipe inside your browser's personal Galley Box (Saved Recipes) for instant offline access later"
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
-                >
-                  🗃️ Save to Galley Box
-                </button>
-                <InfoTooltip text="Saves a copy of this recipe inside your browser's personal Galley Box (Tab 4) so you can reopen it anytime without re-scraping the website." />
-              </div>
-
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleCopyRecipeText}
-                  title="Copy clean, readable recipe text to paste into an email, message, or notes app"
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
-                >
-                  📋 Copy Text
-                </button>
-                <InfoTooltip text="Copies the clean recipe text (including scaled ingredients, steps, and original source link) so you can paste it into an email, text message, or notes app." />
-              </div>
-
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handleDownloadStandaloneHtml}
-                  title="Download a self-contained, printable .html recipe card with embedded QR code and attribution"
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer"
-                >
-                  💾 Save Offline Card
-                </button>
-                <InfoTooltip text="Downloads a standalone .html file containing the styled recipe card, attribution link, and QR code that opens in any browser even without internet." />
-              </div>
-
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handlePrintCard}
-                  title="Open your browser's print / Save-as-PDF dialog using the ink-friendly light stylesheet"
-                  className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/10 cursor-pointer"
-                >
-                  🖨️ Print / Save PDF
-                </button>
-                <InfoTooltip text="Formats the recipe onto a clean, ink-friendly white sheet with a scannable QR code pointing back to the original creator's webpage." />
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowMobileTools((v) => !v)}
+              title="Show or hide photo controls, recipe editor, screen wake lock, and offline HTML export"
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                showMobileTools
+                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                  : 'bg-slate-950 border-slate-800 text-slate-300'
+              }`}
+            >
+              {showMobileTools ? 'Less ▴' : '⚙️ More Tools ▾'}
+            </button>
           </div>
 
-          {/* Candidate Dish Photo Picker Strip (when images are available or user wants to upload one) */}
-          {photoMode !== 'no-photos' && (
-            <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2 py-1">
-                <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1 shrink-0">
-                  Verified Dish Photos ({recipe.candidateImages.length}):
-                  <InfoTooltip text="Click any scraped candidate photo to set it as the recipe cover image, or upload your own photo from your device." />
-                </span>
-                {recipe.candidateImages.map((img, i) => {
-                  const selected = recipe.heroImage === img.url;
-                  return (
-                    <button
-                      key={`${img.url}-${i}`}
-                      type="button"
-                      onClick={() => setRecipe((prev) => ({ ...prev, heroImage: img.url }))}
-                      title={`Select photo #${i + 1} (${img.source})`}
-                      className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                        selected
-                          ? 'border-cyan-400 ring-2 ring-cyan-400/30'
-                          : 'border-slate-700 opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <img
-                        src={img.url}
-                        alt={img.caption || `Candidate ${i + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  );
-                })}
+          {/* Secondary Action Bar & Photo Strip (Always visible on md+ Desktop/Tablet, Collapsible on Phone) */}
+          <div className={`${showMobileTools ? 'block' : 'hidden'} md:block space-y-3 pt-2.5 md:pt-3 border-t border-slate-800`}>
+            {/* Mobile-only Photo Mode selector when expanded */}
+            <div className="flex md:hidden flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/70">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-semibold">Photos:</span>
+                <select
+                  value={photoMode}
+                  onChange={(e) => setPhotoMode(e.target.value as PrintPhotoMode)}
+                  title="Select photo display mode"
+                  className="rounded-xl bg-slate-950 border border-slate-800 px-2.5 py-1 text-xs text-slate-200"
+                >
+                  <option value="hero-only">Dish Cover Photo Only</option>
+                  <option value="hero-and-steps">Dish + Step Photos</option>
+                  <option value="no-photos">No Photos (Ink Saver)</option>
+                </select>
               </div>
-
-              <label
-                className="px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer shrink-0"
-                title="Choose a photo from your device (processed locally in browser RAM)"
-              >
-                + Custom Photo
+              <label className="inline-flex items-center gap-1.5 text-xs text-slate-300">
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCustomPhotoUpload}
-                  className="hidden"
+                  type="checkbox"
+                  checked={showQrCode}
+                  onChange={(e) => setShowQrCode(e.target.checked)}
+                  className="accent-cyan-400"
                 />
+                <span>Print QR Code</span>
               </label>
             </div>
-          )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing((v) => !v)}
+                  title="Edit recipe title, creator attribution, ingredients, steps, or notes before printing"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                    isEditing
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                      : 'bg-slate-800 border-slate-700 text-slate-200 hover:border-slate-600'
+                  }`}
+                >
+                  {isEditing ? 'Done Editing' : '✏️ Edit Recipe & Attribution'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleToggleWakeLock()}
+                  title="Keep your screen from dimming while you follow the recipe in the kitchen"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                    wakeLockActive
+                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {wakeLockActive ? '🔆 Screen Awake' : '🔆 Keep Screen Awake'}
+                </button>
+
+                {recipe.heroImage && !recipe.heroImage.startsWith('data:image/') && (
+                  <button
+                    type="button"
+                    disabled={isEmbeddingPhoto}
+                    onClick={() => void handleEmbedHeroPhotoOffline()}
+                    title="Download and compress the dish photo into a self-contained Base64 image so exported HTML files work 100% offline"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 cursor-pointer"
+                  >
+                    {isEmbeddingPhoto ? 'Embedding Photo...' : 'Inline Photo for Offline Save'}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="hidden md:inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveToGalleyBox}
+                    title="Bookmark this recipe inside your browser's personal Galley Box (Saved Recipes) for instant offline access later"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                  >
+                    🗃️ Save to Galley Box
+                  </button>
+                  <InfoTooltip text="Saves a copy of this recipe inside your browser's personal Galley Box (Tab 4) so you can reopen it anytime without re-scraping the website." />
+                </div>
+
+                <div className="hidden md:inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleCopyRecipeText}
+                    title="Copy clean, readable recipe text to paste into an email, message, or notes app"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+                  >
+                    📋 Copy Text
+                  </button>
+                  <InfoTooltip text="Copies the clean recipe text (including scaled ingredients, steps, and original source link) so you can paste it into an email, text message, or notes app." />
+                </div>
+
+                <div className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleDownloadStandaloneHtml}
+                    title="Download a self-contained, printable .html recipe card with embedded QR code and attribution"
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer"
+                  >
+                    💾 Save Offline Card
+                  </button>
+                  <InfoTooltip text="Downloads a standalone .html file containing the styled recipe card, attribution link, and QR code that opens in any browser even without internet." />
+                </div>
+
+                <div className="hidden md:inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handlePrintCard}
+                    title="Open your browser's print / Save-as-PDF dialog using the ink-friendly light stylesheet"
+                    className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg shadow-cyan-500/10 cursor-pointer"
+                  >
+                    🖨️ Print / Save PDF
+                  </button>
+                  <InfoTooltip text="Formats the recipe onto a clean, ink-friendly white sheet with a scannable QR code pointing back to the original creator's webpage." />
+                </div>
+              </div>
+            </div>
+
+            {/* Candidate Dish Photo Picker Strip */}
+            {photoMode !== 'no-photos' && (
+              <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 py-1">
+                  <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1 shrink-0">
+                    Verified Dish Photos ({recipe.candidateImages.length}):
+                    <InfoTooltip text="Click any scraped candidate photo to set it as the recipe cover image, or upload your own photo from your device." />
+                  </span>
+                  {recipe.candidateImages.map((img, i) => {
+                    const selected = recipe.heroImage === img.url;
+                    return (
+                      <button
+                        key={`${img.url}-${i}`}
+                        type="button"
+                        onClick={() => setRecipe((prev) => ({ ...prev, heroImage: img.url }))}
+                        title={`Select photo #${i + 1} (${img.source})`}
+                        className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                          selected
+                            ? 'border-cyan-400 ring-2 ring-cyan-400/30'
+                            : 'border-slate-700 opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.caption || `Candidate ${i + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <label
+                  className="px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer shrink-0"
+                  title="Choose a photo from your device (processed locally in browser RAM)"
+                >
+                  + Custom Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCustomPhotoUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* 3. Optional Inline Recipe & Attribution Editor Drawer */}
@@ -1386,12 +1478,12 @@ export function App() {
         )}
 
         {/* 4. Printable / Saveable Galley Recipe Card */}
-        <article className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl print-card">
+        <article className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-8 shadow-2xl print-card">
           {/* Card Header + Mandatory Creator Attribution Banner + QR Code */}
-          <div className="flex flex-col sm:flex-row items-start justify-between gap-6 pb-6 mb-6 border-b border-slate-800 print:border-slate-300">
-            <div className="space-y-3 flex-1">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="text-[11px] font-mono uppercase tracking-wider px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 print:bg-slate-100 print:text-slate-800 print:border-slate-400">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4 sm:gap-6 pb-5 sm:pb-6 mb-5 sm:mb-6 border-b border-slate-800 print:border-slate-300">
+            <div className="space-y-2.5 sm:space-y-3 flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-mono uppercase tracking-wider px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 print:bg-slate-100 print:text-slate-800 print:border-slate-400">
                   {recipe.category || 'Galley Recipe'}
                 </span>
                 {recipe.cuisine && (
@@ -1401,19 +1493,19 @@ export function App() {
                 )}
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white print:text-slate-950 leading-snug">
+              <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white print:text-slate-950 leading-snug">
                 {recipe.title}
               </h2>
 
               {recipe.description && (
-                <p className="text-sm text-slate-300 print:text-slate-700 leading-relaxed max-w-3xl">
+                <p className="text-xs sm:text-sm text-slate-300 print:text-slate-700 leading-relaxed max-w-3xl">
                   {recipe.description}
                 </p>
               )}
 
               {/* Prominent Creator Attribution Banner (Never hidden in print or screen) */}
-              <div className="mt-4 p-4 sm:px-5 sm:py-4 rounded-xl bg-slate-950/90 border-l-4 border-cyan-400 border border-slate-800 print:bg-slate-50 print:border-slate-300 print:border-l-4 print:border-l-cyan-600">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs leading-relaxed">
+              <div className="mt-3 sm:mt-4 p-3.5 sm:px-5 sm:py-4 rounded-xl bg-slate-950/90 border-l-4 border-cyan-400 border border-slate-800 print:bg-slate-50 print:border-slate-300 print:border-l-4 print:border-l-cyan-600">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs leading-relaxed">
                   <span className="font-bold text-cyan-300 print:text-slate-900">
                     Recipe by {recipe.attribution.authorName}
                   </span>
@@ -1430,7 +1522,7 @@ export function App() {
                     </>
                   )}
                 </div>
-                <div className="mt-1.5 text-xs text-slate-400 print:text-slate-700 break-all leading-relaxed">
+                <div className="mt-1 text-xs text-slate-400 print:text-slate-700 break-all leading-relaxed">
                   Original Source:{' '}
                   <a
                     href={recipe.attribution.sourceUrl}
@@ -1445,13 +1537,15 @@ export function App() {
               </div>
             </div>
 
-            {/* Scannable QR Code for Print & Mobile Cross-Device Handoff */}
+            {/* Scannable QR Code for Print & Tablet/Desktop Cross-Device Handoff (Hidden on small phone screen where user is already on mobile, always shown in print) */}
             {showQrCode && (
-              <QrCodeBox
-                url={recipe.attribution.sourceUrl}
-                domain={recipe.attribution.domain}
-                size={88}
-              />
+              <div className="hidden sm:block print:block shrink-0">
+                <QrCodeBox
+                  url={recipe.attribution.sourceUrl}
+                  domain={recipe.attribution.domain}
+                  size={88}
+                />
+              </div>
             )}
           </div>
 
@@ -1653,7 +1747,7 @@ export function App() {
             </div>
             <div className="flex items-center gap-3">
               <span>
-                Formatted with Ten Forward v1.5 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                Formatted with Ten Forward v1.6 (ten-forward.the-lal.net) &bull; Extracted{' '}
                 {recipe.attribution.extractedAt}
               </span>
               <a
