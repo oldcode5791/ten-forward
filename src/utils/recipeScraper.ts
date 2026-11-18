@@ -717,6 +717,65 @@ export function extractRecipeFromHtml(html: string, sourceUrl: string): RecipeDa
   };
 }
 
+const QUERY_FILLER_WORDS = new Set([
+  'the',
+  'a',
+  'an',
+  'and',
+  'with',
+  'for',
+  'best',
+  'ever',
+  'easy',
+  'quick',
+  'simple',
+  'amazing',
+  'ultimate',
+  'homemade',
+  'classic',
+  'perfect',
+  'delicious',
+  'favorite',
+  'favourite',
+  'authentic',
+  'traditional',
+  'recipe',
+  'recipes',
+  'custom',
+  'galley',
+  'style',
+]);
+
+/**
+ * Builds a clean, focused dish-photo search query from a recipe title.
+ */
+export function buildImageSearchQuery(title: string): string {
+  const cleaned = title
+    .replace(/\b\d+\s*[- ]?(?:min|minute|minutes|hr|hour|hours)\b/gi, ' ')
+    .replace(/['’]s\b/g, '')
+    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const keywords = cleaned
+    .split(' ')
+    .filter((w) => w.length > 1 && !QUERY_FILLER_WORDS.has(w.toLowerCase()));
+
+  if (keywords.length >= 2) {
+    return keywords.slice(0, 5).join(' ');
+  }
+  return cleaned || title.trim() || 'homemade dish';
+}
+
+const NOISE_LINE_PATTERNS = [
+  /^(?:jump to recipe|print recipe|pin recipe|save recipe|share recipe|rate this recipe|leave a review)$/i,
+  /^(?:print|pin|save|share|scale|cook mode|us customary|metric|imperial)$/i,
+  /^(?:1x|2x|3x|0\.5x)$/i,
+  /^\d+(?:\.\d+)?\s*(?:stars?|out of 5)\b/i,
+  /^\d+(?:\.\d+)?\s+from\s+\d+\s+(?:reviews?|votes?|ratings?)$/i,
+  /^ingredients?\s*\(\d+\s*servings?\)$/i,
+];
+
 /**
  * Parses raw pasted recipe text or HTML (100% client-side zero-server mode).
  */
@@ -729,77 +788,166 @@ export function parseRawRecipeText(
     return extractRecipeFromHtml(trimmed, customAttribution?.sourceUrl || 'https://manual-entry.local/pasted');
   }
 
-  const lines = trimmed
+  const rawLines = trimmed
     .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
+    .map((l) => l.replace(/^\s*(?:[-*•▢☐☑✓]|\[\s?[xX]?\s?\])\s*/, '').trim())
+    .filter((l) => l.length > 0 && !NOISE_LINE_PATTERNS.some((p) => p.test(l)));
 
-  const title = lines[0] || 'Custom Galley Recipe';
+  let title = '';
+  let prepTime = '';
+  let cookTime = '';
+  let totalTime = '';
+  let baseServings = 4;
+  let yieldText = '4 servings';
+  let parsedAuthor = '';
+  let category = 'Custom Entry';
+  let cuisine = '';
+  let calories = '';
+
   const ingredients: string[] = [];
   const steps: RecipeStep[] = [];
   const notes: string[] = [];
 
   let mode: 'auto' | 'ingredients' | 'steps' | 'notes' = 'auto';
-  const unitHint =
-    /^(\d+|\d+\/\d+|[¼½¾⅓⅔⅛])|\b(cup|tbsp|tablespoon|tsp|teaspoon|oz|lb|gram|g|kg|ml|pinch|clove|dash)\b/i;
+  let currentStepSection: string | undefined;
+  let pendingStepPrefix = false;
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].replace(/^[-*•]\s*/, '');
-    if (/^ingredients?[:\s]*$/i.test(line)) {
+  const unitHint =
+    /^(\d+|\d+\/\d+|[¼½¾⅓⅔⅛])|\b(cup|tbsp|tablespoon|tsp|teaspoon|oz|lb|gram|g|kg|ml|pinch|clove|dash|slice|can|bunch)\b/i;
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+
+    // Check metadata key:value lines
+    const metaMatch = /^([a-zA-Z\s]{2,22}):\s*(.+)$/.exec(line);
+    if (metaMatch && mode === 'auto') {
+      const key = metaMatch[1].trim().toLowerCase();
+      const val = metaMatch[2].trim();
+      if (key === 'prep time' || key === 'prep') {
+        prepTime = val;
+        continue;
+      }
+      if (key === 'cook time' || key === 'cook') {
+        cookTime = val;
+        continue;
+      }
+      if (key === 'total time' || key === 'total') {
+        totalTime = val;
+        continue;
+      }
+      if (key === 'servings' || key === 'yield' || key === 'makes') {
+        const parsedYield = parseYield(val);
+        baseServings = parsedYield.baseServings;
+        yieldText = parsedYield.yieldText;
+        continue;
+      }
+      if (key === 'author' || key === 'recipe by' || key === 'by') {
+        parsedAuthor = val;
+        continue;
+      }
+      if (key === 'category' || key === 'course') {
+        category = val;
+        continue;
+      }
+      if (key === 'cuisine') {
+        cuisine = val;
+        continue;
+      }
+      if (key === 'calories') {
+        calories = val;
+        continue;
+      }
+    }
+
+    if (/^by\s+[A-Z]/i.test(line) && !title && line.length < 60) {
+      parsedAuthor = line.replace(/^by\s+/i, '').trim();
+      continue;
+    }
+
+    if (/^ingredients?(?:\s*\(.*\))?[:\s]*$/i.test(line)) {
       mode = 'ingredients';
       continue;
     }
     if (/^(instructions?|directions?|method|steps?|preparation)[:\s]*$/i.test(line)) {
       mode = 'steps';
+      currentStepSection = undefined;
       continue;
     }
-    if (/^(notes?|chef'?s?\s*notes?|tips?)[:\s]*$/i.test(line)) {
+    if (/^(notes?|chef'?s?\s*notes?|tips?|recipe notes?)[:\s]*$/i.test(line)) {
       mode = 'notes';
       continue;
     }
 
+    if (!title) {
+      title = line;
+      continue;
+    }
+
     if (mode === 'ingredients') {
-      ingredients.push(line);
+      // Skip sub-headings like "For the sauce:" without adding as an ingredient if empty after colon
+      if (/^for\s+the\s+.+:$/i.test(line) || (line.endsWith(':') && line.length < 45)) {
+        ingredients.push(`— ${line.replace(/:$/, '')} —`);
+      } else {
+        ingredients.push(line);
+      }
     } else if (mode === 'steps') {
-      steps.push({
-        id: `step-${steps.length + 1}`,
-        text: line.replace(/^(?:step\s*\d+[:.)\s-]*|\d+[.)]\s+)/i, ''),
-      });
+      if (/^(?:step\s*)?\d+[.)]?$/i.test(line)) {
+        pendingStepPrefix = true;
+        continue;
+      }
+      if (line.endsWith(':') && line.length < 55 && !pendingStepPrefix) {
+        currentStepSection = line.replace(/:$/, '').trim();
+        continue;
+      }
+      const cleanedStep = line.replace(/^(?:step\s*\d+[:.)\s-]*|\d+[.)]\s+)/i, '').trim();
+      if (cleanedStep) {
+        steps.push({
+          id: `step-${steps.length + 1}`,
+          section: currentStepSection,
+          text: cleanedStep,
+        });
+      }
+      pendingStepPrefix = false;
     } else if (mode === 'notes') {
       notes.push(line);
     } else {
       if (unitHint.test(line) && line.length < 95) {
         ingredients.push(line);
       } else {
-        steps.push({
-          id: `step-${steps.length + 1}`,
-          text: line.replace(/^(?:step\s*\d+[:.)\s-]*|\d+[.)]\s+)/i, ''),
-        });
+        const cleanedStep = line.replace(/^(?:step\s*\d+[:.)\s-]*|\d+[.)]\s+)/i, '').trim();
+        if (cleanedStep) {
+          steps.push({
+            id: `step-${steps.length + 1}`,
+            text: cleanedStep,
+          });
+        }
       }
     }
   }
 
+  const finalTitle = title || 'Custom Galley Recipe';
   const sourceUrl = cleanCanonicalUrl(customAttribution?.sourceUrl || '');
   const domain = sourceUrl ? extractDomain(sourceUrl) : 'ten-forward.the-lal.net';
   const siteName = customAttribution?.siteName || (sourceUrl ? domainToSiteName(domain) : 'Personal Recipe Box');
-  const authorName = customAttribution?.authorName || 'Family / Personal Collection';
+  const authorName = customAttribution?.authorName || parsedAuthor || 'Family / Personal Collection';
 
   return {
     id: `recipe-${Date.now()}`,
-    title,
+    title: finalTitle,
     description: 'Formatted in Ten Forward from pasted recipe text.',
-    prepTime: '',
-    cookTime: '',
-    totalTime: '',
-    baseServings: 4,
-    yieldText: '4 servings',
-    category: 'Custom Entry',
-    cuisine: '',
+    prepTime,
+    cookTime,
+    totalTime,
+    baseServings,
+    yieldText,
+    category,
+    cuisine,
     ingredients: ingredients.length > 0 ? ingredients : ['Add ingredients using the editor'],
     steps: steps.length > 0 ? steps : [{ id: 'step-1', text: 'Add preparation steps using the editor.' }],
     notes,
     heroImage: '',
     candidateImages: [],
+    nutrition: calories ? { calories } : undefined,
     attribution: {
       sourceUrl: sourceUrl || 'https://ten-forward.the-lal.net/',
       domain,

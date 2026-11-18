@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { extractRecipeFromHtml } from './src/utils/recipeScraper.ts';
+import { searchDishImages, type ImageSearchSource } from './src/utils/imageSearch.ts';
 
 /**
  * Local Vite dev-server middleware so /api/extract and /api/image-proxy work
@@ -53,6 +54,28 @@ function tenForwardApiDevPlugin(): Plugin {
                 error: `Unable to fetch URL (${msg}). Use "Paste Recipe Text / HTML" mode when offline.`,
               })
             );
+          }
+          return;
+        }
+
+        if (parsed.pathname === '/api/image-search') {
+          const q = parsed.searchParams.get('q')?.trim() || '';
+          const rawSource = parsed.searchParams.get('source')?.trim() || 'wikimedia';
+          const source: ImageSearchSource =
+            rawSource === 'openverse' || rawSource === 'all' ? rawSource : 'wikimedia';
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          if (!q) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Please provide a dish search query (?q=...).' }));
+            return;
+          }
+          try {
+            const images = await searchDishImages(q, source);
+            res.statusCode = 200;
+            res.end(JSON.stringify({ images, query: q, source }));
+          } catch {
+            res.statusCode = 502;
+            res.end(JSON.stringify({ error: 'Unable to fetch sample dish photos right now.' }));
           }
           return;
         }

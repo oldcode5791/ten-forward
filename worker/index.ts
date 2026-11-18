@@ -1,4 +1,5 @@
 import { extractRecipeFromHtml } from '../src/utils/recipeScraper';
+import { searchDishImages, type ImageSearchSource } from '../src/utils/imageSearch';
 
 export interface Env {
   ASSETS?: {
@@ -108,7 +109,45 @@ export default {
       }
     }
 
-    // 2. Stateless Image Proxy for Offline Base64 Embedding: /api/image-proxy?url=...
+    // 2. Stateless Web Dish Image Search: /api/image-search?q=...&source=wikimedia|openverse|all
+    if (url.pathname === '/api/image-search') {
+      const q = url.searchParams.get('q')?.trim() || '';
+      const rawSource = url.searchParams.get('source')?.trim() || 'wikimedia';
+      const source: ImageSearchSource =
+        rawSource === 'openverse' || rawSource === 'all' ? rawSource : 'wikimedia';
+
+      if (!q) {
+        return new Response(
+          JSON.stringify({ error: 'Please provide a dish search query (?q=...).' }),
+          {
+            status: 400,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json; charset=utf-8' },
+          }
+        );
+      }
+
+      try {
+        const images = await searchDishImages(q, source);
+        return new Response(JSON.stringify({ images, query: q, source }), {
+          status: 200,
+          headers: {
+            ...CORS_HEADERS,
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'public, max-age=1800',
+          },
+        });
+      } catch {
+        return new Response(
+          JSON.stringify({ error: 'Unable to fetch sample dish photos right now.' }),
+          {
+            status: 502,
+            headers: { ...CORS_HEADERS, 'Content-Type': 'application/json; charset=utf-8' },
+          }
+        );
+      }
+    }
+
+    // 3. Stateless Image Proxy for Offline Base64 Embedding: /api/image-proxy?url=...
     if (url.pathname === '/api/image-proxy') {
       const imgUrl = url.searchParams.get('url')?.trim() || '';
       if (!imgUrl || !isSafePublicHttpUrl(imgUrl)) {

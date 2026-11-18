@@ -9,11 +9,20 @@ export interface AttributionRecord {
   creditNote: string;
 }
 
+export interface ImageAttribution {
+  authorName: string;
+  authorUrl?: string;
+  sourcePageUrl?: string;
+  license?: string;
+  provider: string;
+}
+
 export interface CandidateImage {
   url: string;
   caption?: string;
-  source: 'json-ld-hero' | 'json-ld-step' | 'opengraph' | 'dom-verified' | 'custom';
+  source: 'json-ld-hero' | 'json-ld-step' | 'opengraph' | 'dom-verified' | 'web-search' | 'custom';
   score: number;
+  attribution?: ImageAttribution;
 }
 
 export interface RecipeStep {
@@ -45,6 +54,7 @@ export interface RecipeData {
   steps: RecipeStep[];
   notes: string[];
   heroImage: string;
+  heroImageAttribution?: ImageAttribution;
   candidateImages: CandidateImage[];
   nutrition?: NutritionInfo;
   attribution: AttributionRecord;

@@ -68,6 +68,16 @@ export function compilePlainRecipeText(
     }
   }
 
+  if (recipe.heroImage && recipe.heroImageAttribution) {
+    const imgAttr = recipe.heroImageAttribution;
+    const licensePart = imgAttr.license ? ` (${imgAttr.license})` : '';
+    const linkPart = imgAttr.sourcePageUrl ? ` — ${imgAttr.sourcePageUrl}` : '';
+    lines.push(
+      '',
+      `Dish Photo Credit: ${imgAttr.authorName}${licensePart} via ${imgAttr.provider}${linkPart}`
+    );
+  }
+
   lines.push(
     '',
     'Disclaimer: While Ten Forward strives for accuracy, automated extraction, portion scaling, and unit conversions may occasionally make mistakes. Please double-check all measurements and timings against the original source.'
@@ -199,6 +209,15 @@ export function compileStandaloneRecipeHtml(
       margin-bottom: 20px;
       border: 1px solid #e2e8f0;
     }
+    .hero-credit {
+      font-size: 11px;
+      color: #475569;
+      margin: -14px 0 20px 0;
+    }
+    .hero-credit a {
+      color: #0e7490;
+      text-decoration: underline;
+    }
     .grid {
       display: grid;
       grid-template-columns: 1fr 1.8fr;
@@ -292,6 +311,19 @@ export function compileStandaloneRecipeHtml(
     </div>
 
     ${showHero ? `<img class="hero-img" src="${escapeHtml(recipe.heroImage)}" alt="${escapeHtml(recipe.title)}" />` : ''}
+    ${
+      showHero && recipe.heroImageAttribution
+        ? `<p class="hero-credit">Photo by ${
+            recipe.heroImageAttribution.authorUrl
+              ? `<a href="${escapeHtml(recipe.heroImageAttribution.authorUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(recipe.heroImageAttribution.authorName)}</a>`
+              : escapeHtml(recipe.heroImageAttribution.authorName)
+          }${recipe.heroImageAttribution.license ? ` &bull; ${escapeHtml(recipe.heroImageAttribution.license)}` : ''} via ${
+            recipe.heroImageAttribution.sourcePageUrl
+              ? `<a href="${escapeHtml(recipe.heroImageAttribution.sourcePageUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(recipe.heroImageAttribution.provider)}</a>`
+              : escapeHtml(recipe.heroImageAttribution.provider)
+          }</p>`
+        : ''
+    }
 
     <div class="grid">
       <section>
@@ -332,7 +364,7 @@ export function compileStandaloneRecipeHtml(
         ⚠️ Accuracy Notice: While we strive for accuracy, automated recipe extraction, portion scaling, and unit conversions may occasionally make mistakes. Please double-check all measurements and timings against the original source.
       </div>
       <div>Attributed to <strong>${escapeHtml(recipe.attribution.authorName)}</strong> (${escapeHtml(recipe.attribution.siteName)}) — <a href="${escapeHtml(recipe.attribution.sourceUrl)}">${escapeHtml(recipe.attribution.sourceUrl)}</a></div>
-      <div>Formatted with Ten Forward v1.9 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
+      <div>Formatted with Ten Forward v1.10 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
     </footer>
   </article>
 </body>

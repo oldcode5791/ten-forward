@@ -11,11 +11,15 @@ import {
   transformIngredientLine,
 } from './utils/ingredientScaler';
 import {
+  buildImageSearchQuery,
   cleanCanonicalUrl,
   extractDomain,
   parseRawRecipeText,
 } from './utils/recipeScraper';
+import type { ImageSearchSource } from './utils/imageSearch';
 import type {
+  CandidateImage,
+  ImageAttribution,
   PrintPhotoMode,
   RecipeData,
   SavedRecipeEntry,
@@ -55,6 +59,18 @@ export function App() {
   const [pasteSourceUrl, setPasteSourceUrl] = useState('');
   const [pasteAuthorName, setPasteAuthorName] = useState('');
   const [pasteSiteName, setPasteSiteName] = useState('');
+  const [pasteImageMode, setPasteImageMode] = useState<'web-search' | 'upload' | 'none'>('web-search');
+  const [pasteUploadedImage, setPasteUploadedImage] = useState('');
+  const [pasteUploadedCaption, setPasteUploadedCaption] = useState('');
+  const [pasteImageUrlInput, setPasteImageUrlInput] = useState('');
+  const [pasteImageCredit, setPasteImageCredit] = useState('');
+
+  // Web sample dish photo search state
+  const [imageSearchQuery, setImageSearchQuery] = useState(() =>
+    buildImageSearchQuery((savedRecipes[0]?.recipe ?? STARFLEET_SAMPLE_RECIPES[0]).title)
+  );
+  const [imageSearchSource, setImageSearchSource] = useState<ImageSearchSource>('wikimedia');
+  const [isSearchingImages, setIsSearchingImages] = useState(false);
 
   // Interactive Scaling, Unit Conversion & Print Controls
   const [targetServings, setTargetServings] = useState<number>(
@@ -103,6 +119,7 @@ export function App() {
   const loadRecipe = useCallback((next: RecipeData) => {
     setRecipe(next);
     setTargetServings(next.baseServings || 4);
+    setImageSearchQuery(buildImageSearchQuery(next.title));
     setCheckedIngredients({});
     setActiveStepIndex(null);
     setEditingNoteIndex(null);
@@ -210,7 +227,92 @@ export function App() {
   }, [loadRecipe]);
 
   /**
-   * Parses raw pasted recipe text or HTML 100% in browser RAM.
+   * Compresses a user-selected image file (from phone or PC) into a Data URI in browser RAM.
+   */
+  const compressImageFileToDataUri = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Invalid image file'));
+        img.onload = () => {
+          const maxW = 900;
+          const scale = Math.min(1, maxW / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas unavailable'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.84));
+        };
+        img.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  /**
+   * Queries /api/image-search for attributed sample dish photos and merges them into candidateImages.
+   */
+  const handleSearchWebImages = useCallback(
+    async (
+      overrideQuery?: string,
+      overrideSource?: ImageSearchSource,
+      targetRecipeId?: string
+    ) => {
+      const q = (overrideQuery ?? imageSearchQuery).trim();
+      const source = overrideSource ?? imageSearchSource;
+      if (!q) {
+        showToast('Enter a dish name or keywords to search for sample photos.');
+        return;
+      }
+
+      setIsSearchingImages(true);
+      try {
+        const res = await fetch(
+          `/api/image-search?q=${encodeURIComponent(q)}&source=${encodeURIComponent(source)}`
+        );
+        const data = (await res.json()) as { images?: CandidateImage[]; error?: string };
+        if (!res.ok || !Array.isArray(data.images)) {
+          showToast(data.error || 'Could not fetch sample dish photos.');
+          return;
+        }
+        const found = data.images;
+        if (found.length === 0) {
+          showToast(`No sample photos found for "${q}". Try shorter keywords or upload your own.`);
+          return;
+        }
+
+        updateActiveRecipe((prev) => {
+          if (targetRecipeId && prev.id !== targetRecipeId) return prev;
+          const existingUrls = new Set(prev.candidateImages.map((c) => c.url));
+          const fresh = found.filter((c) => !existingUrls.has(c.url));
+          const merged = [...prev.candidateImages, ...fresh];
+          const shouldSetHero = !prev.heroImage;
+          return {
+            ...prev,
+            heroImage: shouldSetHero ? found[0].url : prev.heroImage,
+            heroImageAttribution: shouldSetHero ? found[0].attribution : prev.heroImageAttribution,
+            candidateImages: merged,
+          };
+        });
+        showToast(`Found ${found.length} attributed sample photo(s) for "${q}".`);
+      } catch {
+        showToast('Offline or network unavailable — you can still upload a photo from your device.');
+      } finally {
+        setIsSearchingImages(false);
+      }
+    },
+    [imageSearchQuery, imageSearchSource, showToast, updateActiveRecipe]
+  );
+
+  /**
+   * Parses raw pasted recipe text or HTML 100% in browser RAM, with optional user upload or web sample photo search.
    */
   const handleParsePastedText = () => {
     if (!rawPasteText.trim()) {
@@ -222,8 +324,46 @@ export function App() {
       authorName: pasteAuthorName.trim() || undefined,
       siteName: pasteSiteName.trim() || undefined,
     });
+
+    if (pasteImageMode === 'upload') {
+      const customUrl = pasteUploadedImage || pasteImageUrlInput.trim();
+      if (customUrl) {
+        const customAttr: ImageAttribution | undefined = pasteImageCredit.trim()
+          ? {
+              authorName: pasteImageCredit.trim(),
+              provider: pasteUploadedImage ? 'User Upload' : 'Custom URL',
+            }
+          : pasteUploadedImage
+            ? {
+                authorName: 'Personal Photo',
+                provider: 'User Upload',
+              }
+            : undefined;
+        parsed.heroImage = customUrl;
+        parsed.heroImageAttribution = customAttr;
+        parsed.candidateImages = [
+          {
+            url: customUrl,
+            caption: pasteUploadedCaption || parsed.title,
+            source: 'custom',
+            score: 110,
+            attribution: customAttr,
+          },
+          ...parsed.candidateImages,
+        ];
+      }
+    }
+
     loadRecipe(parsed);
-    showToast(`Parsed "${parsed.title}" into a clean Galley Card.`);
+    const query = buildImageSearchQuery(parsed.title);
+    setImageSearchQuery(query);
+
+    if (pasteImageMode === 'web-search' && !parsed.heroImage) {
+      showToast(`Formatted "${parsed.title}" — searching for sample dish photos...`);
+      void handleSearchWebImages(query, imageSearchSource, parsed.id);
+    } else {
+      showToast(`Parsed "${parsed.title}" into a clean Galley Card.`);
+    }
   };
 
   /**
@@ -266,37 +406,53 @@ export function App() {
   };
 
   /**
-   * Allows user to upload a custom dish photo from their device (compressed in RAM).
+   * Allows user to upload a custom dish photo from their phone or PC (compressed in RAM).
    */
-  const handleCustomPhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleCustomPhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const maxW = 900;
-        const scale = Math.min(1, maxW / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
-        updateActiveRecipe((prev) => ({
-          ...prev,
-          heroImage: dataUrl,
-          candidateImages: [
-            { url: dataUrl, caption: file.name, source: 'custom', score: 110 },
-            ...prev.candidateImages,
-          ],
-        }));
-        showToast('Added custom dish photo in browser memory.');
+    try {
+      const dataUrl = await compressImageFileToDataUri(file);
+      const customAttr: ImageAttribution = {
+        authorName: 'Personal Photo',
+        provider: 'User Upload',
       };
-      img.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
+      updateActiveRecipe((prev) => ({
+        ...prev,
+        heroImage: dataUrl,
+        heroImageAttribution: customAttr,
+        candidateImages: [
+          {
+            url: dataUrl,
+            caption: file.name,
+            source: 'custom',
+            score: 110,
+            attribution: customAttr,
+          },
+          ...prev.candidateImages,
+        ],
+      }));
+      showToast('Added custom dish photo from your device.');
+    } catch {
+      showToast('Could not process that image file.');
+    }
+  };
+
+  /**
+   * Handles uploading a photo directly inside the Paste Text tab before formatting.
+   */
+  const handlePasteTabPhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFileToDataUri(file);
+      setPasteUploadedImage(dataUrl);
+      setPasteUploadedCaption(file.name);
+      setPasteImageMode('upload');
+      showToast(`Attached "${file.name}" for your pasted recipe.`);
+    } catch {
+      showToast('Could not read that image file.');
+    }
   };
 
   /**
@@ -575,9 +731,9 @@ export function App() {
                 <span>Ten Forward</span>
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.9"
+                  title="Ten Forward Application Version 1.10"
                 >
-                  v1.9
+                  v1.10
                 </span>
                 <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Creator Attribution + Zero Tracking
@@ -937,6 +1093,115 @@ export function App() {
                   title="Paste copied recipe text or HTML source code here"
                   className="w-full rounded-xl bg-slate-950 border border-slate-700 p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-cyan-400"
                 />
+              </div>
+
+              {/* Dish Photo Option for Pasted Recipe */}
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1.5">
+                    Dish Photo Source
+                    <InfoTooltip text="Choose how to add a photo to your pasted recipe: auto-fetch attributed sample photos from the web, upload your own photo from your phone or PC, or keep it text-only." />
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(
+                      [
+                        { id: 'web-search', label: '🌐 Auto-Fetch Web Samples', tip: 'Automatically search for attributed sample dish photos based on your recipe title' },
+                        { id: 'upload', label: '📷 Upload Phone / PC Photo', tip: 'Attach a photo from your phone gallery, camera, or computer' },
+                        { id: 'none', label: '🚫 No Photo', tip: 'Create a clean text-only Galley Card' },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setPasteImageMode(opt.id)}
+                        title={opt.tip}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                          pasteImageMode === opt.id
+                            ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {pasteImageMode === 'web-search' && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 pt-1 border-t border-slate-800/70">
+                    <span>
+                      Will fetch attributed sample photos matching your recipe title (you can refine keywords or swap sources after formatting).
+                    </span>
+                    <div className="inline-flex items-center gap-1.5 shrink-0">
+                      <span className="text-[11px] uppercase font-semibold text-slate-400">Source:</span>
+                      <select
+                        value={imageSearchSource}
+                        onChange={(e) => setImageSearchSource(e.target.value as ImageSearchSource)}
+                        title="Choose which public image source to search by default"
+                        className="rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                      >
+                        <option value="wikimedia">Wikimedia Commons (Default)</option>
+                        <option value="openverse">Openverse (Creative Commons)</option>
+                        <option value="all">Both (Wikimedia + Openverse)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {pasteImageMode === 'upload' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-800/70 items-center">
+                    <div className="flex items-center gap-2">
+                      <label
+                        title="Choose a dish photo from your phone or computer (compressed locally in browser RAM)"
+                        className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-semibold cursor-pointer shrink-0"
+                      >
+                        📷 Choose File
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => void handlePasteTabPhotoUpload(e)}
+                          className="hidden"
+                        />
+                      </label>
+                      {pasteUploadedImage && (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={pasteUploadedImage}
+                            alt="Uploaded preview"
+                            className="w-10 h-10 rounded-lg object-cover border border-cyan-400/60 shrink-0"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPasteUploadedImage('');
+                              setPasteUploadedCaption('');
+                            }}
+                            title="Remove uploaded photo"
+                            className="text-[11px] text-slate-400 hover:text-red-300 cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="url"
+                      value={pasteImageUrlInput}
+                      onChange={(e) => setPasteImageUrlInput(e.target.value)}
+                      placeholder="Or paste direct image URL (https://...)"
+                      title="Optional direct image URL if not uploading a file"
+                      className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs text-slate-100"
+                    />
+                    <input
+                      type="text"
+                      value={pasteImageCredit}
+                      onChange={(e) => setPasteImageCredit(e.target.value)}
+                      placeholder="Photo credit (optional, e.g. My kitchen)"
+                      title="Optional photographer or credit note for your custom photo"
+                      className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs text-slate-100"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end">
@@ -1470,50 +1735,102 @@ export function App() {
               </div>
             </div>
 
-            {/* Candidate Dish Photo Picker Strip */}
+            {/* Candidate Dish Photo Picker Strip + Web Sample Search + Custom Upload */}
             {photoMode !== 'no-photos' && (
-              <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 py-1">
-                  <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1 shrink-0">
-                    Verified Dish Photos ({recipe.candidateImages.length}):
-                    <InfoTooltip text="Click any scraped candidate photo to set it as the recipe cover image, or upload your own photo from your device." />
-                  </span>
-                  {recipe.candidateImages.map((img, i) => {
-                    const selected = recipe.heroImage === img.url;
-                    return (
-                      <button
-                        key={`${img.url}-${i}`}
-                        type="button"
-                        onClick={() => updateActiveRecipe((prev) => ({ ...prev, heroImage: img.url }))}
-                        title={`Select photo #${i + 1} (${img.source})`}
-                        className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                          selected
-                            ? 'border-cyan-400 ring-2 ring-cyan-400/30'
-                            : 'border-slate-700 opacity-70 hover:opacity-100'
-                        }`}
-                      >
-                        <img
-                          src={img.url}
-                          alt={img.caption || `Candidate ${i + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    );
-                  })}
+              <div className="pt-3 border-t border-slate-800/80 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2 py-1">
+                    <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1 shrink-0">
+                      Dish Photos ({recipe.candidateImages.length}):
+                      <InfoTooltip text="Click any candidate photo to set it as the cover image, search the web for attributed sample photos, or upload your own photo from your phone or PC." />
+                    </span>
+                    {recipe.candidateImages.map((img, i) => {
+                      const selected = recipe.heroImage === img.url;
+                      const attrTip = img.attribution
+                        ? `Photo by ${img.attribution.authorName}${img.attribution.license ? ` (${img.attribution.license})` : ''} via ${img.attribution.provider}`
+                        : `Select photo #${i + 1} (${img.source})`;
+                      return (
+                        <button
+                          key={`${img.url}-${i}`}
+                          type="button"
+                          onClick={() =>
+                            updateActiveRecipe((prev) => ({
+                              ...prev,
+                              heroImage: img.url,
+                              heroImageAttribution: img.attribution,
+                            }))
+                          }
+                          title={attrTip}
+                          className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                            selected
+                              ? 'border-cyan-400 ring-2 ring-cyan-400/30'
+                              : 'border-slate-700 opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img
+                            src={img.url}
+                            alt={img.caption || `Candidate ${i + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <label
+                    className="px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-cyan-500/40 text-xs font-semibold text-cyan-300 cursor-pointer shrink-0"
+                    title="Upload a dish photo from your phone gallery, camera, or PC (compressed locally in browser RAM)"
+                  >
+                    📷 Upload Phone / PC Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => void handleCustomPhotoUpload(e)}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
 
-                <label
-                  className="px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer shrink-0"
-                  title="Choose a photo from your device (processed locally in browser RAM)"
-                >
-                  + Custom Photo
+                {/* Editable Web Sample Photo Search Bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80">
+                  <span className="text-[11px] font-semibold uppercase text-slate-400 flex items-center gap-1 shrink-0">
+                    Web Samples:
+                    <InfoTooltip text="Search Wikimedia Commons or Openverse for permissive-license dish photos with automatic photographer & license attribution." />
+                  </span>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleCustomPhotoUpload}
-                    className="hidden"
+                    type="text"
+                    value={imageSearchQuery}
+                    onChange={(e) => setImageSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void handleSearchWebImages();
+                      }
+                    }}
+                    placeholder="Dish keywords (e.g., garlic butter salmon)"
+                    title="Edit search keywords to find better sample dish photos"
+                    className="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-400"
                   />
-                </label>
+                  <select
+                    value={imageSearchSource}
+                    onChange={(e) => setImageSearchSource(e.target.value as ImageSearchSource)}
+                    title="Select public image source"
+                    className="rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="wikimedia">Wikimedia Commons</option>
+                    <option value="openverse">Openverse (CC)</option>
+                    <option value="all">Both Sources</option>
+                  </select>
+                  <button
+                    type="button"
+                    disabled={isSearchingImages}
+                    onClick={() => void handleSearchWebImages()}
+                    title="Fetch attributed sample dish photos from the selected web source"
+                    className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-cyan-300 text-xs font-semibold cursor-pointer shrink-0"
+                  >
+                    {isSearchingImages ? 'Searching...' : '🔍 Find Sample Photos'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1630,6 +1947,32 @@ export function App() {
                   className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-1.5 text-xs text-white"
                 />
               </div>
+              {recipe.heroImage && (
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] uppercase text-slate-400 font-semibold mb-1">
+                    Dish Photo Credit (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={recipe.heroImageAttribution?.authorName || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      updateActiveRecipe((p) => ({
+                        ...p,
+                        heroImageAttribution: val
+                          ? {
+                              ...(p.heroImageAttribution || { provider: 'Custom Credit' }),
+                              authorName: val,
+                            }
+                          : undefined,
+                      }));
+                    }}
+                    placeholder="e.g., Wikimedia Commons / Personal Photo"
+                    title="Edit or clear the photographer credit shown under the dish photo"
+                    className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-1.5 text-xs text-white"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1834,15 +2177,56 @@ export function App() {
             </div>
           </div>
 
-          {/* Hero Dish Photo */}
+          {/* Hero Dish Photo + Attribution */}
           {photoMode !== 'no-photos' && recipe.heroImage && (
-            <div className="mb-7 rounded-xl overflow-hidden border border-slate-800 print:border-slate-300 bg-slate-950">
-              <img
-                src={recipe.heroImage}
-                alt={recipe.title}
-                className="w-full max-h-80 object-cover"
-              />
-            </div>
+            <figure className="mb-7 space-y-1.5">
+              <div className="rounded-xl overflow-hidden border border-slate-800 print:border-slate-300 bg-slate-950">
+                <img
+                  src={recipe.heroImage}
+                  alt={recipe.title}
+                  className="w-full max-h-80 object-cover"
+                />
+              </div>
+              {recipe.heroImageAttribution && (
+                <figcaption className="text-[11px] text-slate-400 print:text-slate-600 flex flex-wrap items-center gap-x-1.5 px-1">
+                  <span>
+                    Photo by{' '}
+                    {recipe.heroImageAttribution.authorUrl ? (
+                      <a
+                        href={recipe.heroImageAttribution.authorUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 print:text-slate-900 underline"
+                      >
+                        {recipe.heroImageAttribution.authorName}
+                      </a>
+                    ) : (
+                      <strong className="text-slate-300 print:text-slate-800">
+                        {recipe.heroImageAttribution.authorName}
+                      </strong>
+                    )}
+                  </span>
+                  {recipe.heroImageAttribution.license && (
+                    <span>&bull; {recipe.heroImageAttribution.license}</span>
+                  )}
+                  <span>
+                    via{' '}
+                    {recipe.heroImageAttribution.sourcePageUrl ? (
+                      <a
+                        href={recipe.heroImageAttribution.sourcePageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 print:text-slate-900 underline"
+                      >
+                        {recipe.heroImageAttribution.provider}
+                      </a>
+                    ) : (
+                      recipe.heroImageAttribution.provider
+                    )}
+                  </span>
+                </figcaption>
+              )}
+            </figure>
           )}
 
           {/* 2-Column Recipe Body: Ingredients + Preparation Steps */}
@@ -2132,7 +2516,7 @@ export function App() {
               </div>
               <div className="flex items-center gap-3">
                 <span>
-                  Formatted with Ten Forward v1.9 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                  Formatted with Ten Forward v1.10 (ten-forward.the-lal.net) &bull; Extracted{' '}
                   {recipe.attribution.extractedAt}
                 </span>
                 <a

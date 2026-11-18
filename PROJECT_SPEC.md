@@ -6,7 +6,7 @@
 **Category:** Everyday & Kitchen Utilities  
 **Target Domain:** `ten-forward.the-lal.net` (or external web app deployment)  
 **Repository:** `github.com/oldcode5791/ten-forward`  
-**Last Updated:** 2026-11-13  
+**Last Updated:** 2026-11-18  
 
 ---
 
@@ -151,3 +151,7 @@ export interface AttributionRecord {
   - Built `src/utils/exportCompilers.ts` for standalone offline `.html` cards and `.md` files with YAML attribution frontmatter + Local Galley Box (`localStorage`)
 - [x] **Phase 5: Verification & Polish**
   - Verified scraper, high-res image deduplication, garbage image rejection, `oxlint` (0 warnings/0 errors), and production `tsc -b && vite build`.
+- [x] **Phase 6: v1.10 Paste-to-Card, Web Sample Image Search & User Photo Upload**
+  - Upgraded `parseRawRecipeText` to extract timings, servings, author, calories, section headers, and strip web copy-paste UI noise.
+  - Added stateless `/api/image-search` endpoint (`src/utils/imageSearch.ts`, `worker/index.ts`, `vite.config.ts`) supporting Wikimedia Commons (default) and Openverse with permissive license filtering and full photographer/license attribution.
+  - Added user-provided photo upload (phone/PC file picker or URL + optional credit) directly in Paste Mode and the Photo Picker Strip, plus editable search keywords/source and photo attribution in screen, `@media print`, and `.html`/text exports.
