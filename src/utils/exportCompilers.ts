@@ -364,7 +364,7 @@ export function compileStandaloneRecipeHtml(
         ⚠️ Accuracy Notice: While we strive for accuracy, automated recipe extraction, portion scaling, and unit conversions may occasionally make mistakes. Please double-check all measurements and timings against the original source.
       </div>
       <div>Attributed to <strong>${escapeHtml(recipe.attribution.authorName)}</strong> (${escapeHtml(recipe.attribution.siteName)}) — <a href="${escapeHtml(recipe.attribution.sourceUrl)}">${escapeHtml(recipe.attribution.sourceUrl)}</a></div>
-      <div>Formatted with Ten Forward v1.10 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
+      <div>Formatted with Ten Forward v1.10.1 (ten-forward.the-lal.net) • Saved ${escapeHtml(recipe.attribution.extractedAt)}</div>
     </footer>
   </article>
 </body>

@@ -731,9 +731,9 @@ export function App() {
                 <span>Ten Forward</span>
                 <span
                   className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-400"
-                  title="Ten Forward Application Version 1.10"
+                  title="Ten Forward Application Version 1.10.1"
                 >
-                  v1.10
+                  v1.10.1
                 </span>
                 <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Creator Attribution + Zero Tracking
@@ -2516,7 +2516,7 @@ export function App() {
               </div>
               <div className="flex items-center gap-3">
                 <span>
-                  Formatted with Ten Forward v1.10 (ten-forward.the-lal.net) &bull; Extracted{' '}
+                  Formatted with Ten Forward v1.10.1 (ten-forward.the-lal.net) &bull; Extracted{' '}
                   {recipe.attribution.extractedAt}
                 </span>
                 <a

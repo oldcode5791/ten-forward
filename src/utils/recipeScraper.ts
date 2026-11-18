@@ -496,6 +496,60 @@ function extractFilteredDomImages(html: string, baseUrl: string): CandidateImage
 }
 
 /**
+ * Detects duration-only or metadata list items (e.g. "10 mins", "30 mins + 6 hours standing", "overnight chilling")
+ * that frequently appear in related-recipe cards and should never be classified as ingredients or steps.
+ */
+function isDurationOrMetaLine(text: string): boolean {
+  const s = text.trim();
+  if (!s) return true;
+  if (
+    /^\d+(?:\.\d+)?\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours|sec|secs|second|seconds)\b(?:\s*[+,/]\s*(?:\d+(?:\.\d+)?\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours)|overnight|chilling|standing|resting|marinating|refrigeration|prep|cook|total).*)*$/i.test(
+      s
+    )
+  ) {
+    return true;
+  }
+  if (
+    /^(?:overnight\s+chilling|chilling\s+time|standing\s+time|refrigeration\s+time|resting\s+time|marinating\s+time)$/i.test(
+      s
+    )
+  ) {
+    return true;
+  }
+  if (/^(?:prep|cook|total)\s*(?:time)?\s*[:\-–]?\s*\d+/i.test(s) && s.length < 60) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Returns true if a line looks like a real culinary ingredient rather than a cooking step or duration badge.
+ */
+function isLikelyIngredientLine(text: string): boolean {
+  const s = text.trim();
+  if (!s || s.length >= 110 || isDurationOrMetaLine(s)) return false;
+
+  // Reject instruction-like sentences (cooking verbs, oven temps, multi-sentence prose)
+  if (/°\s*[CF]\b|\bdegrees?\b/i.test(s)) return false;
+  if (/\.\s+[A-Z]/.test(s)) return false;
+  if (
+    /^(?:preheat|combine|mix|stir|whisk|bake|roast|cook|heat|place|put|add|pour|transfer|serve|toss|season|melt|bring|simmer|boil|drain|line|grease|turn\s+to)\b/i.test(
+      s
+    )
+  ) {
+    return false;
+  }
+
+  const startsWithQty = /^(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?|[¼½¾⅓⅔⅛])\s+\S/.test(s);
+  const hasCulinaryUnit =
+    /\b(?:cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|gram|grams|g|kg|ml|l|pinch|clove|cloves|slice|slices|can|cans|bunch|sprig|sprigs|handful|splash|dash|packet|sheet|sheets|fillet|fillets)\b/i.test(
+      s
+    );
+
+  return startsWithQty || hasCulinaryUnit;
+}
+
+/**
  * Extracts a RecipeData object from raw HTML and its source URL.
  */
 export function extractRecipeFromHtml(html: string, sourceUrl: string): RecipeData {
@@ -660,22 +714,20 @@ export function extractRecipeFromHtml(html: string, sourceUrl: string): RecipeDa
   const pageDesc =
     extractMetaContent(html, 'og:description') || extractMetaContent(html, 'description');
 
-  // Extract list items from HTML as candidate ingredients/steps
+  // Extract list items from HTML as candidate ingredients/steps, filtering out duration badges
   const liRegex = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
   const listItems: string[] = [];
   let liMatch: RegExpExecArray | null;
   while ((liMatch = liRegex.exec(html)) !== null) {
     const text = cleanText(liMatch[1]);
-    if (text.length >= 4 && text.length <= 260) {
+    if (text.length >= 4 && text.length <= 260 && !isDurationOrMetaLine(text)) {
       listItems.push(text);
     }
   }
 
-  const unitRegex =
-    /\b(\d+\/\d+|\d+|\bcup|\bc\b|tbsp|tablespoon|tsp|teaspoon|oz|ounce|lb|pound|gram|\bg\b|\bkg\b|\bml\b|pinch|clove|slice|can|bunch)\b/i;
-  const ingredients = listItems.filter((item) => unitRegex.test(item) && item.length < 120).slice(0, 30);
+  const ingredients = listItems.filter((item) => isLikelyIngredientLine(item)).slice(0, 30);
   const stepLines = listItems
-    .filter((item) => item.length >= 35 && !ingredients.includes(item))
+    .filter((item) => item.length >= 25 && !ingredients.includes(item) && !isDurationOrMetaLine(item))
     .slice(0, 20);
 
   const candidateImages = deduplicateCandidateImages(domImages);
@@ -812,9 +864,6 @@ export function parseRawRecipeText(
   let currentStepSection: string | undefined;
   let pendingStepPrefix = false;
 
-  const unitHint =
-    /^(\d+|\d+\/\d+|[¼½¾⅓⅔⅛])|\b(cup|tbsp|tablespoon|tsp|teaspoon|oz|lb|gram|g|kg|ml|pinch|clove|dash|slice|can|bunch)\b/i;
-
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i];
 
@@ -911,7 +960,10 @@ export function parseRawRecipeText(
     } else if (mode === 'notes') {
       notes.push(line);
     } else {
-      if (unitHint.test(line) && line.length < 95) {
+      if (isDurationOrMetaLine(line)) {
+        continue;
+      }
+      if (isLikelyIngredientLine(line)) {
         ingredients.push(line);
       } else {
         const cleanedStep = line.replace(/^(?:step\s*\d+[:.)\s-]*|\d+[.)]\s+)/i, '').trim();

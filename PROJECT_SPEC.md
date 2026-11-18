@@ -155,3 +155,5 @@ export interface AttributionRecord {
   - Upgraded `parseRawRecipeText` to extract timings, servings, author, calories, section headers, and strip web copy-paste UI noise.
   - Added stateless `/api/image-search` endpoint (`src/utils/imageSearch.ts`, `worker/index.ts`, `vite.config.ts`) supporting Wikimedia Commons (default) and Openverse with permissive license filtering and full photographer/license attribution.
   - Added user-provided photo upload (phone/PC file picker or URL + optional credit) directly in Paste Mode and the Photo Picker Strip, plus editable search keywords/source and photo attribution in screen, `@media print`, and `.html`/text exports.
+- [x] **Phase 6.1: v1.10.1 Scraper & Paste Ingredient Classification Fix**
+  - Added `isDurationOrMetaLine` and `isLikelyIngredientLine` in `src/utils/recipeScraper.ts` to stop duration badges (`10 mins`, `30 mins + 6 hours standing`, `overnight chilling`) and cooking steps (`Preheat the oven to 180°C...`) from being classified as ingredients.
